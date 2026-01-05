@@ -1,0 +1,357 @@
+﻿@page "/register"
+@using Unı_Proje.Web.Client.Models
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Components.Web
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Kayıt Ol</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-gradient text-white text-center py-4">
+                    <h3 class="mb-0">
+                        <i class="bi bi-person-plus-fill me-2"></i>
+                        Kayıt Ol
+                    </h3>
+                </div>
+                <div class="card-body p-4">
+                    @if (adim == 1)
+                    {
+                        @* ADIM 1: Kullanıcı Bilgileri *@
+                        <div class="mb-3">
+                            <p class="text-muted text-center">
+                                <i class="bi bi-info-circle me-1"></i>
+                                İkinci El Market'e hoş geldiniz! Hemen üye olun.
+                            </p>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-person me-2"></i>
+                                Kullanıcı Adı
+                            </label>
+                            <input type="text" 
+                                   class="form-control form-control-lg" 
+                                   @bind="registerModel.KullaniciAdi"
+                                   placeholder="örnek: emrebulut"
+                                   disabled="@yukleniyor" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-envelope me-2"></i>
+                                E-Posta
+                            </label>
+                            <input type="email" 
+                                   class="form-control form-control-lg" 
+                                   @bind="registerModel.Email"
+                                   placeholder="ornek@email.com"
+                                   disabled="@yukleniyor" />
+                            <small class="text-muted">
+                                <i class="bi bi-shield-check me-1"></i>
+                                Email adresinize doğrulama kodu gönderilecek
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-key me-2"></i>
+                                Şifre
+                            </label>
+                            <input type="password" 
+                                   class="form-control form-control-lg" 
+                                   @bind="registerModel.Sifre"
+                                   placeholder="En az 6 karakter"
+                                   disabled="@yukleniyor" />
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary btn-lg" 
+                                    @onclick="EmailDogrulamaKoduGonder"
+                                    disabled="@yukleniyor">
+                                @if (yukleniyor)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-arrow-right-circle me-2"></i>
+                                İleri
+                            </button>
+                        </div>
+                    }
+                    else if (adim == 2)
+                    {
+                        @* ADIM 2: Email Doğrulama *@
+                        <div class="alert alert-success">
+                            <i class="bi bi-envelope-check me-2"></i>
+                            <strong>@registerModel.Email</strong> adresine 6 haneli doğrulama kodu gönderildi!
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Doğrulama Kodu</label>
+                            <input type="text" 
+                                   class="form-control form-control-lg text-center" 
+                                   @bind="dogrulamaKodu"
+                                   placeholder="000000"
+                                   maxlength="6"
+                                   style="letter-spacing: 10px; font-size: 28px; font-weight: bold;"
+                                   disabled="@yukleniyor" />
+                            <small class="text-muted d-block mt-2 text-center">
+                                <i class="bi bi-clock me-1"></i>
+                                Kod 10 dakika geçerlidir
+                            </small>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success btn-lg" 
+                                    @onclick="KaydiTamamla"
+                                    disabled="@yukleniyor">
+                                @if (yukleniyor)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-check-circle-fill me-2"></i>
+                                Kaydı Tamamla
+                            </button>
+                            <button class="btn btn-outline-secondary" 
+                                    @onclick="() => adim = 1"
+                                    disabled="@yukleniyor">
+                                <i class="bi bi-arrow-left me-2"></i>
+                                Geri Dön
+                            </button>
+                        </div>
+
+                        <div class="text-center mt-3">
+                            <small class="text-muted">
+                                Kod gelmedi mi? 
+                                <button class="btn btn-link btn-sm p-0" 
+                                        @onclick="EmailDogrulamaKoduGonder" 
+                                        disabled="@(yukleniyor || kodTekrarGonderSayac > 0)">
+                                    @if (kodTekrarGonderSayac > 0)
+                                    {
+                                        <span>@kodTekrarGonderSayac saniye sonra tekrar deneyin</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Tekrar Gönder</span>
+                                    }
+                                </button>
+                            </small>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(mesaj))
+                    {
+                        <div class="alert @mesajTipi mt-3 animate__animated animate__fadeIn" role="alert">
+                            <i class="bi @(mesajTipi.Contains("success") ? "bi-check-circle" : "bi-exclamation-triangle") me-2"></i>
+                            @mesaj
+                        </div>
+                    }
+
+                    <hr class="my-4" />
+
+                    <div class="text-center">
+                        <span class="text-muted">Zaten hesabınız var mı?</span>
+                        <a href="/login" class="text-decoration-none fw-bold">
+                            Giriş Yap
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private RegisterViewModel registerModel = new RegisterViewModel();
+    private string dogrulamaKodu = "";
+    private int adim = 1;
+    private bool yukleniyor = false;
+    private string mesaj = "";
+    private string mesajTipi = "";
+    private int kodTekrarGonderSayac = 0;
+    private System.Threading.Timer? kodTimer;
+
+    private async Task EmailDogrulamaKoduGonder()
+    {
+        mesaj = "";
+
+        // Validasyon
+        if (string.IsNullOrWhiteSpace(registerModel.KullaniciAdi))
+        {
+            mesaj = "Lütfen kullanıcı adı girin.";
+            mesajTipi = "alert-warning";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(registerModel.Email) || !registerModel.Email.Contains("@"))
+        {
+            mesaj = "Lütfen geçerli bir email adresi girin.";
+            mesajTipi = "alert-warning";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(registerModel.Sifre) || registerModel.Sifre.Length < 6)
+        {
+            mesaj = "Şifreniz en az 6 karakter olmalıdır.";
+            mesajTipi = "alert-warning";
+            return;
+        }
+
+        yukleniyor = true;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("https://localhost:7130/api/emaildogrulama/kod-gonder",
+                new { Email = registerModel.Email });
+
+            if (response.IsSuccessStatusCode)
+            {
+                mesaj = "Doğrulama kodu email adresinize gönderildi!";
+                mesajTipi = "alert-success";
+                adim = 2;
+
+                // Tekrar gönder için 60 saniye bekle
+                kodTekrarGonderSayac = 60;
+                KodTimerBaslat();
+            }
+            else
+            {
+                var hata = await response.Content.ReadAsStringAsync();
+                mesaj = hata;
+                mesajTipi = "alert-danger";
+            }
+        }
+        catch (Exception ex)
+        {
+            mesaj = $"Hata: {ex.Message}";
+            mesajTipi = "alert-danger";
+        }
+        finally
+        {
+            yukleniyor = false;
+        }
+    }
+
+    private async Task KaydiTamamla()
+    {
+        mesaj = "";
+
+        if (string.IsNullOrWhiteSpace(dogrulamaKodu) || dogrulamaKodu.Length != 6)
+        {
+            mesaj = "Lütfen 6 haneli doğrulama kodunu girin.";
+            mesajTipi = "alert-warning";
+            return;
+        }
+
+        yukleniyor = true;
+
+        try
+        {
+            // Önce kodu doğrula
+            var dogrulamaResponse = await Http.PostAsJsonAsync("https://localhost:7130/api/emaildogrulama/kod-dogrula",
+                new { Email = registerModel.Email, Kod = dogrulamaKodu });
+
+            if (!dogrulamaResponse.IsSuccessStatusCode)
+            {
+                mesaj = "Geçersiz veya süresi dolmuş kod!";
+                mesajTipi = "alert-danger";
+                yukleniyor = false;
+                return;
+            }
+
+            // Kod doğrulandı, şimdi kayıt işlemini yap
+            var kayitResponse = await Http.PostAsJsonAsync("https://localhost:7130/api/auth/register", registerModel);
+
+            if (kayitResponse.IsSuccessStatusCode)
+            {
+                await JS.InvokeVoidAsync("alert", "✅ Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz...");
+                Navigation.NavigateTo("/login");
+            }
+            else
+            {
+                var hata = await kayitResponse.Content.ReadAsStringAsync();
+                mesaj = hata;
+                mesajTipi = "alert-danger";
+            }
+        }
+        catch (Exception ex)
+        {
+            mesaj = $"Hata: {ex.Message}";
+            mesajTipi = "alert-danger";
+        }
+        finally
+        {
+            yukleniyor = false;
+        }
+    }
+
+    private void KodTimerBaslat()
+    {
+        kodTimer?.Dispose();
+        kodTimer = new System.Threading.Timer(async _ =>
+        {
+            if (kodTekrarGonderSayac > 0)
+            {
+                kodTekrarGonderSayac--;
+                await InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                kodTimer?.Dispose();
+            }
+        }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+    }
+
+    public void Dispose()
+    {
+        kodTimer?.Dispose();
+    }
+
+    public class RegisterViewModel
+    {
+        public string KullaniciAdi { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Sifre { get; set; } = "";
+    }
+}
+
+<style>
+    .bg-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .card {
+        border-radius: 15px;
+        overflow: hidden;
+    }
+
+    input:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn-link:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .animate__animated.animate__fadeIn {
+        animation: fadeIn 0.3s ease;
+    }
+</style>

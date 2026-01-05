@@ -1,0 +1,493 @@
+@page "/bildirimler"
+@using Uný_Proje.Web.Client.Services
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@inject BildirimServis BildirimServis
+
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+
+<PageTitle>Bildirimler</PageTitle>
+
+<div class="container mt-4">
+@* Ana Sayfa Butonu *@
+<div class="mb-3">
+    <a href="/" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>
+        Ana Sayfaya Dön
+    </a>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="bi bi-bell-fill text-warning me-2"></i>
+        Bildirimlerim
+    </h2>
+    <div class="d-flex gap-2">
+        @if (bildirimler.Any(b => !b.Okundu))
+        {
+            <button class="btn btn-outline-primary btn-sm" @onclick="HepsiniOkunduIsaretle">
+                <i class="bi bi-check-all me-1"></i>
+                Tümünü Okundu Ýþaretle
+            </button>
+        }
+        @if (bildirimler.Any())
+        {
+            <button class="btn btn-outline-danger btn-sm" @onclick="HepsiniSil">
+                <i class="bi bi-trash me-1"></i>
+                Tümünü Sil
+            </button>
+        }
+    </div>
+</div>
+
+    @* Filtreleme Butonlarý *@
+    <div class="btn-group mb-4" role="group">
+        <button type="button" 
+                class="btn @(seciliFiltre == "hepsi" ? "btn-primary" : "btn-outline-primary")"
+                @onclick='() => FiltreUygula("hepsi")'>
+            <i class="bi bi-list-ul me-1"></i>
+            Tümü (@bildirimler.Count)
+        </button>
+        <button type="button" 
+                class="btn @(seciliFiltre == "okunmamis" ? "btn-primary" : "btn-outline-primary")"
+                @onclick='() => FiltreUygula("okunmamis")'>
+            <i class="bi bi-envelope me-1"></i>
+            Okunmamýþ (@bildirimler.Count(b => !b.Okundu))
+        </button>
+        <button type="button" 
+                class="btn @(seciliFiltre == "siparis" ? "btn-success" : "btn-outline-success")"
+                @onclick='() => FiltreUygula("siparis")'>
+            <i class="bi bi-box-seam me-1"></i>
+            Sipariþler (@bildirimler.Count(b => b.Tip == "siparis"))
+        </button>
+        <button type="button" 
+                class="btn @(seciliFiltre == "degerlendirme" ? "btn-warning" : "btn-outline-warning")"
+                @onclick='() => FiltreUygula("degerlendirme")'>
+            <i class="bi bi-star me-1"></i>
+            Deðerlendirmeler (@bildirimler.Count(b => b.Tip == "degerlendirme"))
+        </button>
+        <button type="button" 
+                class="btn @(seciliFiltre == "mesaj" ? "btn-info" : "btn-outline-info")"
+                @onclick='() => FiltreUygula("mesaj")'>
+            <i class="bi bi-chat-dots me-1"></i>
+            Mesajlar (@bildirimler.Count(b => b.Tip == "mesaj"))
+        </button>
+    </div>
+
+    @if (yukleniyor)
+    {
+        <div class="text-center my-5">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+            <p class="mt-3 text-muted">Bildirimler yükleniyor...</p>
+        </div>
+    }
+    else if (!filtreliListe.Any())
+    {
+        <div class="text-center my-5">
+            <div class="fs-1">
+                @if (seciliFiltre == "hepsi")
+                {
+                    <i class="bi bi-bell-slash text-muted"></i>
+                }
+                else if (seciliFiltre == "okunmamis")
+                {
+                    <i class="bi bi-check-circle text-success"></i>
+                }
+                else
+                {
+                    <i class="bi bi-funnel text-muted"></i>
+                }
+            </div>
+            <h4 class="text-muted mt-3">
+                @if (seciliFiltre == "hepsi")
+                {
+                    <text>Henüz bildiriminiz yok</text>
+                }
+                else if (seciliFiltre == "okunmamis")
+                {
+                    <text>Tüm bildirimler okundu</text>
+                }
+                else
+                {
+                    <text>Bu kategoride bildirim yok</text>
+                }
+            </h4>
+            <p class="text-muted">
+                @if (seciliFiltre == "hepsi")
+                {
+                    <text>Yeni bildirimler geldiðinde burada görünecek.</text>
+                }
+                else if (seciliFiltre == "okunmamis")
+                {
+                    <text>Harika! Tüm bildirimlerinizi okudunuz.</text>
+                }
+                else
+                {
+                    <text>Bu kategoriye ait bildirim bulunmuyor.</text>
+                }
+            </p>
+            <a href="/" class="btn btn-primary mt-3">
+                <i class="bi bi-house me-2"></i>
+                Ana Sayfaya Dön
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            @foreach (var bildirim in filtreliListe)
+            {
+                <div class="col-12 mb-3">
+                    <div class="card shadow-sm @(bildirim.Okundu ? "" : "border-primary border-2")">
+                        <div class="card-body">
+                            <div class="d-flex align-items-start">
+                                @* Ýkon *@
+                                <div class="me-3">
+                                    @if (bildirim.Tip == "siparis")
+                                    {
+                                        <div class="rounded-circle bg-success bg-opacity-10 p-3">
+                                            <i class="bi bi-box-seam text-success fs-3"></i>
+                                        </div>
+                                    }
+                                    else if (bildirim.Tip == "degerlendirme")
+                                    {
+                                        <div class="rounded-circle bg-warning bg-opacity-10 p-3">
+                                            <i class="bi bi-star-fill text-warning fs-3"></i>
+                                        </div>
+                                    }
+                                    else if (bildirim.Tip == "mesaj")
+                                    {
+                                        <div class="rounded-circle bg-primary bg-opacity-10 p-3">
+                                            <i class="bi bi-chat-dots-fill text-primary fs-3"></i>
+                                        </div>
+                                    }
+                                    else if (bildirim.Tip == "satis")
+                                    {
+                                        <div class="rounded-circle bg-info bg-opacity-10 p-3">
+                                            <i class="bi bi-cash-coin text-info fs-3"></i>
+                                        </div>
+                                    }
+                                    else if (bildirim.Tip == "teklif")
+                                    {
+                                        <div class="rounded-circle bg-secondary bg-opacity-10 p-3">
+                                            <i class="bi bi-tag-fill text-secondary fs-3"></i>
+                                        </div>
+                                    }
+                                </div>
+
+                                @* Ýçerik *@
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h5 class="card-title mb-0 @(bildirim.Okundu ? "" : "fw-bold")">
+                                            @bildirim.Baslik
+                                        </h5>
+                                        @if (!bildirim.Okundu)
+                                        {
+                                            <span class="badge bg-primary ms-2">Yeni</span>
+                                        }
+                                    </div>
+                                    
+                                    <p class="card-text text-muted mb-2">
+                                        @bildirim.Mesaj
+                                    </p>
+
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">
+                                            <i class="bi bi-clock me-1"></i>
+                                            @ZamanFarki(bildirim.OlusturmaTarihi)
+                                        </small>
+
+                                        <div class="d-flex gap-2">
+                                            @if (!bildirim.Okundu)
+                                            {
+                                                <button class="btn btn-sm btn-outline-primary" 
+                                                        @onclick="() => OkunduIsaretle(bildirim.Id)"
+                                                        title="Okundu iþaretle">
+                                                    <i class="bi bi-check2"></i>
+                                                </button>
+                                            }
+                                            
+                                            @if (bildirim.IliskiliId.HasValue)
+                                            {
+                                                <button class="btn btn-sm btn-primary" 
+                                                        @onclick="() => BildirimTiklandi(bildirim)"
+                                                        title="Detaylarý gör">
+                                                    <i class="bi bi-arrow-right-circle me-1"></i>
+                                                    Detay
+                                                </button>
+                                            }
+                                            
+                                            <button class="btn btn-sm btn-outline-danger" 
+                                                    @onclick="() => BildirimSil(bildirim.Id)"
+                                                    title="Sil">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<BildirimDto> bildirimler = new();
+    private List<BildirimDto> filtreliListe = new();
+    private bool yukleniyor = true;
+    private string seciliFiltre = "hepsi";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await BildirimleriYukle();
+    }
+
+    private async Task BildirimleriYukle()
+    {
+        yukleniyor = true;
+
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            var (liste, hata) = await BildirimServis.BildirimleriGetir(token);
+            
+            if (string.IsNullOrEmpty(hata) && liste != null)
+            {
+                bildirimler = liste;
+                FiltreUygula(seciliFiltre);
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Hata: {hata}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Hata: {ex.Message}");
+        }
+        finally
+        {
+            yukleniyor = false;
+        }
+    }
+
+    private void FiltreUygula(string filtre)
+    {
+        seciliFiltre = filtre;
+
+        filtreliListe = filtre switch
+        {
+            "okunmamis" => bildirimler.Where(b => !b.Okundu).ToList(),
+            "siparis" => bildirimler.Where(b => b.Tip == "siparis").ToList(),
+            "degerlendirme" => bildirimler.Where(b => b.Tip == "degerlendirme").ToList(),
+            "mesaj" => bildirimler.Where(b => b.Tip == "mesaj").ToList(),
+            "satis" => bildirimler.Where(b => b.Tip == "satis").ToList(),
+            _ => bildirimler
+        };
+    }
+
+    private async Task OkunduIsaretle(int bildirimId)
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            var basarili = await BildirimServis.OkunduIsaretle(bildirimId, token);
+            
+            if (basarili)
+            {
+                var bildirim = bildirimler.FirstOrDefault(b => b.Id == bildirimId);
+                if (bildirim != null)
+                {
+                    bildirim.Okundu = true;
+                    FiltreUygula(seciliFiltre);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Hata: {ex.Message}");
+        }
+    }
+
+    private async Task HepsiniOkunduIsaretle()
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            var basarili = await BildirimServis.HepsiniOkunduIsaretle(token);
+            
+            if (basarili)
+            {
+                foreach (var bildirim in bildirimler)
+                {
+                    bildirim.Okundu = true;
+                }
+                FiltreUygula(seciliFiltre);
+                await JSRuntime.InvokeVoidAsync("alert", "Tüm bildirimler okundu olarak iþaretlendi.");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Hata: {ex.Message}");
+        }
+    }
+
+    private async Task BildirimSil(int bildirimId)
+    {
+        if (!await JSRuntime.InvokeAsync<bool>("confirm", "Bu bildirimi silmek istediðinizden emin misiniz?"))
+            return;
+
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            var basarili = await BildirimServis.BildirimSil(bildirimId, token);
+            
+            if (basarili)
+            {
+                bildirimler.RemoveAll(b => b.Id == bildirimId);
+                FiltreUygula(seciliFiltre);
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Bildirim silinemedi.");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Hata: {ex.Message}");
+        }
+    }
+
+    private async Task HepsiniSil()
+    {
+        if (!await JSRuntime.InvokeAsync<bool>("confirm", "Tüm bildirimleri silmek istediðinizden emin misiniz? Bu iþlem geri alýnamaz!"))
+            return;
+
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            var basarili = await BildirimServis.HepsiniSil(token);
+            
+            if (basarili)
+            {
+                bildirimler.Clear();
+                FiltreUygula(seciliFiltre);
+                await JSRuntime.InvokeVoidAsync("alert", "Tüm bildirimler silindi.");
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Bildirimler silinemedi.");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Hata: {ex.Message}");
+        }
+    }
+
+    private async Task BildirimTiklandi(BildirimDto bildirim)
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            // Okunmadýysa okundu iþaretle
+            if (!bildirim.Okundu)
+            {
+                await BildirimServis.OkunduIsaretle(bildirim.Id, token);
+                bildirim.Okundu = true;
+            }
+
+            // Ýlgili sayfaya yönlendir
+            if (bildirim.Tip == "siparis" && bildirim.IliskiliId.HasValue)
+            {
+                Navigation.NavigateTo($"/siparis-detay/{bildirim.IliskiliId.Value}");
+            }
+            else if (bildirim.Tip == "mesaj")
+            {
+                Navigation.NavigateTo("/mesajlarim");
+            }
+            else if (bildirim.Tip == "degerlendirme")
+            {
+                Navigation.NavigateTo("/profilim");
+            }
+            else if (bildirim.Tip == "satis")
+            {
+                Navigation.NavigateTo("/ilanlarim");
+            }
+            else if (bildirim.Tip == "teklif")
+            {
+                Navigation.NavigateTo("/gelen-teklifler");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Hata: {ex.Message}");
+        }
+    }
+
+    private string ZamanFarki(DateTime tarih)
+    {
+        var fark = DateTime.Now - tarih;
+        
+        if (fark.TotalMinutes < 1)
+            return "Az önce";
+        if (fark.TotalMinutes < 60)
+            return $"{(int)fark.TotalMinutes} dakika önce";
+        if (fark.TotalHours < 24)
+            return $"{(int)fark.TotalHours} saat önce";
+        if (fark.TotalDays < 7)
+            return $"{(int)fark.TotalDays} gün önce";
+        if (fark.TotalDays < 30)
+            return $"{(int)(fark.TotalDays / 7)} hafta önce";
+        if (fark.TotalDays < 365)
+            return $"{(int)(fark.TotalDays / 30)} ay önce";
+        
+        return tarih.ToString("dd.MM.yyyy");
+    }
+}

@@ -1,0 +1,640 @@
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.WebAssembly.Http
+@inject ChatBotServis ChatBotServis
+@implements IDisposable
+
+<div class="chatbot-container">
+    @* Bovi Chat Butonu *@
+    <button type="button" class="chatbot-toggle" @onclick="ToggleChat" @onclick:stopPropagation="true" title="Bovi ile konuþ!">
+        @if (chatAcik)
+        {
+            <i class="bi bi-x-lg"></i>
+        }
+        else
+        {
+            <span class="bovi-icon">B</span>
+        }
+    </button>
+
+    @* ChatBot Penceresi *@
+    @if (chatAcik)
+    {
+        <div class="chatbot-window">
+            @* Bovi Header *@
+            <div class="chatbot-header">
+                <div class="d-flex align-items-center">
+                    <div class="bot-avatar me-2">
+                        <span class="bovi-letter">B</span>
+                    </div>
+                    <div>
+                        <h6 class="mb-0 fw-bold">Bovi</h6>
+                        <small class="text-white-50">Yardýmcý Asistanýnýz</small>
+                    </div>
+                </div>
+                <button class="btn-close btn-close-white" @onclick="ToggleChat"></button>
+            </div>
+
+            @* Mesajlar *@
+            <div class="chatbot-messages">
+                @if (mesajlar.Count == 0)
+                {
+                    <div class="welcome-message">
+                        <div class="bot-avatar-big mb-3">
+                            <span class="bovi-letter-big">B</span>
+                        </div>
+                        <h5 class="fw-bold">Merhaba! Ben Bovi!</h5>
+                        <p class="text-muted">Senin yardýmcý arkadaþýn! Size nasýl yardýmcý olabilirim?</p>
+                    </div>
+                }
+
+                @foreach (var mesaj in mesajlar)
+                {
+                    <div class="message @(mesaj.Gonderen == "user" ? "user-message" : "bot-message")">
+                        @if (mesaj.Gonderen == "bot")
+                        {
+                            <div class="message-avatar">
+                                <span class="bovi-letter-small">B</span>
+                            </div>
+                        }
+                        <div class="message-bubble">
+                            @((MarkupString)mesaj.Mesaj.Replace("\n", "<br/>"))
+                            <div class="message-time">@mesaj.Zaman.ToString("HH:mm")</div>
+                        </div>
+                    </div>
+                }
+
+                @if (yukleniyor)
+                {
+                    <div class="message bot-message">
+                        <div class="message-avatar">
+                            <span class="bovi-letter-small">B</span>
+                        </div>
+                        <div class="message-bubble">
+                            <div class="typing-indicator">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                            <small class="text-muted">Bovi yazýyor...</small>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @* Hýzlý Cevaplar *@
+            @if (hizliCevaplar?.Count > 0)
+            {
+                <div class="quick-replies">
+                    @foreach (var cevap in hizliCevaplar)
+                    {
+                        <button class="quick-reply-btn" @onclick="@(() => HizliCevapGonder(cevap))">
+                            @cevap
+                        </button>
+                    }
+                </div>
+            }
+
+            @* Input *@
+            <div class="chatbot-input">
+                <input type="text" 
+                       class="form-control" 
+                       placeholder="Bovi'ye mesajýnýzý yazýn..." 
+                       @bind="yeniMesaj"
+                       @bind:event="oninput"
+                       @onkeydown="OnKeyDown"
+                       disabled="@yukleniyor" />
+                <button class="btn btn-primary" 
+                        @onclick="MesajGonder" 
+                        disabled="@(string.IsNullOrWhiteSpace(yeniMesaj) || yukleniyor)">
+                    <i class="bi bi-send-fill"></i>
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool chatAcik = false;
+    private List<ChatMesajModel> mesajlar = new();
+    private string yeniMesaj = string.Empty;
+    private bool yukleniyor = false;
+    private string? sessionId;
+    private List<string>? hizliCevaplar;
+
+    protected override void OnInitialized()
+    {
+        sessionId = Guid.NewGuid().ToString();
+        Console.WriteLine($"[BOVI] Session baþlatýldý: {sessionId}");
+    }
+
+    private void ToggleChat()
+    {
+        Console.WriteLine($"[BOVI] ToggleChat çaðrýldý. Önceki durum: {chatAcik}");
+        chatAcik = !chatAcik;
+        Console.WriteLine($"[BOVI] Yeni durum: {chatAcik}");
+        
+        if (chatAcik && mesajlar.Count == 0)
+        {
+            Console.WriteLine("[BOVI] Ýlk hoþgeldin mesajý ekleniyor...");
+            MesajEkle("bot", "Merhaba! Ben Bovi, senin alýþveriþ arkadaþýn! Size nasýl yardýmcý olabilirim?\n\nÞu konularda yardýmcý olabilirim:\n• Sipariþ ve kargo\n• Ödeme iþlemleri\n• Ýade ve deðiþim\n• Hesap yönetimi\n• Ürün arama\n• Satýcý olma\n\nHadi, sorunu anlat!");
+            hizliCevaplar = new List<string> { "Bovi kimdir?", "Sipariþ durumu", "Kargo takibi" };
+            Console.WriteLine($"[BOVI] Mesaj sayýsý: {mesajlar.Count}, Hýzlý cevap sayýsý: {hizliCevaplar?.Count ?? 0}");
+        }
+        
+        StateHasChanged();
+        Console.WriteLine("[BOVI] StateHasChanged çaðrýldý");
+    }
+
+    private async Task MesajGonder()
+    {
+        if (string.IsNullOrWhiteSpace(yeniMesaj)) return;
+
+        var mesaj = yeniMesaj.Trim();
+        yeniMesaj = string.Empty;
+
+        MesajEkle("user", mesaj);
+
+        yukleniyor = true;
+        StateHasChanged();
+
+        var cevap = await ChatBotServis.MesajGonder(mesaj, sessionId);
+
+        yukleniyor = false;
+
+        if (cevap != null)
+        {
+            MesajEkle("bot", cevap.Cevap);
+            hizliCevaplar = cevap.HizliCevaplar;
+            
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                sessionId = cevap.SessionId;
+            }
+        }
+        else
+        {
+            MesajEkle("bot", "Hoppaa! Bir þeyler ters gitti. Tekrar dener misin?");
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task HizliCevapGonder(string cevap)
+    {
+        yeniMesaj = cevap;
+        await MesajGonder();
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(yeniMesaj))
+        {
+            await MesajGonder();
+        }
+    }
+
+    private void MesajEkle(string gonderen, string mesaj)
+    {
+        mesajlar.Add(new ChatMesajModel
+        {
+            Gonderen = gonderen,
+            Mesaj = mesaj,
+            Zaman = DateTime.Now
+        });
+    }
+
+    public void Dispose()
+    {
+    }
+
+    private class ChatMesajModel
+    {
+        public string Gonderen { get; set; } = string.Empty;
+        public string Mesaj { get; set; } = string.Empty;
+        public DateTime Zaman { get; set; }
+    }
+}
+
+<style>
+    /* ChatBot Container */
+    .chatbot-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+    }
+
+    /* Bovi Toggle Button - Site Temasýna Uygun (Mavi-Mor) */
+    .chatbot-toggle {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: 3px solid white;
+        color: white;
+        font-size: 32px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: pulse 2s infinite;
+    }
+
+    .bovi-icon {
+        font-size: 38px;
+        font-weight: 900;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        animation: wave 1s ease-in-out infinite;
+    }
+
+    @@keyframes pulse {
+        0%, 100% {
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        50% {
+            box-shadow: 0 8px 28px rgba(102, 126, 234, 0.7);
+        }
+    }
+
+    @@keyframes wave {
+        0%, 100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.1);
+        }
+    }
+
+    .chatbot-toggle:hover {
+        transform: scale(1.15);
+        box-shadow: 0 12px 36px rgba(102, 126, 234, 0.6);
+    }
+
+    .chatbot-toggle:active {
+        transform: scale(0.95);
+    }
+
+    /* Chat Window */
+    .chatbot-window {
+        position: absolute;
+        bottom: 85px;
+        right: 0;
+        width: 380px;
+        height: 550px;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+        display: flex;
+        flex-direction: column;
+        animation: slideUp 0.3s ease;
+        overflow: hidden;
+    }
+
+    @@keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Bovi Header */
+    .chatbot-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .bot-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.25);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        font-weight: bold;
+        border: 2px solid rgba(255,255,255,0.5);
+        animation: rotate 3s ease-in-out infinite;
+    }
+
+    @@keyframes rotate {
+        0%, 100% { transform: rotate(0deg) scale(1); }
+        25% { transform: rotate(-10deg) scale(1.05); }
+        75% { transform: rotate(10deg) scale(1.05); }
+    }
+
+    .bot-avatar-big {
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 48px;
+        font-weight: bold;
+        color: white;
+        margin: 0 auto;
+        border: 4px solid rgba(102, 126, 234, 0.3);
+        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5);
+        animation: float 3s ease-in-out infinite;
+    }
+
+    @@keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+    }
+
+    .bovi-letter {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .bovi-letter-big {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .bovi-letter-small {
+        font-size: 16px;
+        font-weight: bold;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    /* Messages */
+    .chatbot-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        background: linear-gradient(to bottom, #f8f9ff 0%, #ffffff 100%);
+    }
+
+    .welcome-message {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+
+    .welcome-message h5 {
+        color: #667eea;
+        animation: welcome 0.8s ease-in-out;
+    }
+
+    @@keyframes welcome {
+        0% { 
+            opacity: 0; 
+            transform: scale(0.5);
+        }
+        50% {
+            transform: scale(1.1);
+        }
+        100% { 
+            opacity: 1; 
+            transform: scale(1);
+        }
+    }
+
+    .message {
+        display: flex;
+        margin-bottom: 16px;
+        align-items: flex-start;
+    }
+
+    .user-message {
+        justify-content: flex-end;
+    }
+
+    .bot-message {
+        justify-content: flex-start;
+    }
+
+    .message-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        flex-shrink: 0;
+        margin-right: 8px;
+        border: 2px solid rgba(102, 126, 234, 0.2);
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        animation: hop 0.6s ease-in-out;
+    }
+
+    @@keyframes hop {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
+    }
+
+    .message-bubble {
+        max-width: 70%;
+        padding: 12px 16px;
+        border-radius: 18px;
+        position: relative;
+        animation: fadeIn 0.3s ease;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .user-message .message-bubble {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom-right-radius: 4px;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .bot-message .message-bubble {
+        background: white;
+        color: #333;
+        border-bottom-left-radius: 4px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        border: 1px solid #e8e9ff;
+    }
+
+    .message-time {
+        font-size: 11px;
+        opacity: 0.7;
+        margin-top: 6px;
+    }
+
+    /* Typing Indicator */
+    .typing-indicator {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 4px;
+    }
+
+    .typing-indicator span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #667eea;
+        animation: bounce 1.4s infinite ease-in-out both;
+    }
+
+    .typing-indicator span:nth-child(1) {
+        animation-delay: -0.32s;
+    }
+
+    .typing-indicator span:nth-child(2) {
+        animation-delay: -0.16s;
+    }
+
+    @@keyframes bounce {
+        0%, 80%, 100% {
+            transform: scale(0);
+        }
+        40% {
+            transform: scale(1);
+        }
+    }
+
+    /* Quick Replies */
+    .quick-replies {
+        padding: 12px 16px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        background: #f8f9ff;
+        border-top: 1px solid #e8e9ff;
+    }
+
+    .quick-reply-btn {
+        padding: 8px 16px;
+        border: 2px solid #667eea;
+        background: white;
+        color: #667eea;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 6px rgba(102, 126, 234, 0.15);
+    }
+
+    .quick-reply-btn:hover {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+    }
+
+    .quick-reply-btn:active {
+        transform: translateY(0);
+    }
+
+    /* Input */
+    .chatbot-input {
+        padding: 16px;
+        background: white;
+        display: flex;
+        gap: 8px;
+        border-top: 1px solid #e8e9ff;
+    }
+
+    .chatbot-input input {
+        flex: 1;
+        border: 2px solid #e8e9ff;
+        border-radius: 24px;
+        padding: 12px 18px;
+        transition: all 0.3s ease;
+        font-size: 14px;
+    }
+
+    .chatbot-input input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    }
+
+    .chatbot-input button {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .chatbot-input button:hover:not(:disabled) {
+        transform: scale(1.15) rotate(15deg);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+
+    .chatbot-input button:active:not(:disabled) {
+        transform: scale(1.0);
+    }
+
+    .chatbot-input button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: linear-gradient(135deg, #999 0%, #777 100%);
+    }
+
+    /* Scrollbar */
+    .chatbot-messages::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .chatbot-messages::-webkit-scrollbar-track {
+        background: #f8f9ff;
+    }
+
+    .chatbot-messages::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 3px;
+    }
+
+    .chatbot-messages::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, #5569d8 0%, #653a90 100%);
+    }
+
+    /* Mobile Responsive */
+    @@media (max-width: 768px) {
+        .chatbot-window {
+            width: calc(100vw - 40px);
+            height: calc(100vh - 140px);
+            max-height: 600px;
+            bottom: 75px;
+        }
+
+        .chatbot-toggle {
+            width: 60px;
+            height: 60px;
+        }
+
+        .bovi-icon {
+            font-size: 32px;
+        }
+    }
+</style>

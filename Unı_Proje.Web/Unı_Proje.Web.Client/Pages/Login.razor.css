@@ -1,0 +1,68 @@
+﻿/* Sayfanın arka planını hafif gri yapalım ki kart öne çıksın */
+.row {
+    margin-top: 50px;
+}
+
+/* Giriş Kartı Tasarımı */
+.card {
+    border: none; /* Standart kenarlığı kaldır */
+    border-radius: 15px; /* Köşeleri yuvarlat */
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1); /* Gölge ekle (Derinlik hissi) */
+    background: #ffffff;
+    overflow: hidden; /* İçerik taşarsa yuvarlak köşeleri bozmasın */
+}
+
+/* Kartın Başlığı */
+.card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Modern Mor-Mavi Geçiş */
+    color: white;
+    font-weight: bold;
+    padding: 20px;
+    border-bottom: none;
+}
+
+/* Form Elemanları */
+.form-label {
+    font-weight: 600;
+    color: #555;
+}
+
+.form-control {
+    border-radius: 8px;
+    padding: 10px 15px;
+    border: 1px solid #e0e0e0;
+    background-color: #f9f9f9;
+    transition: all 0.3s ease;
+}
+
+    .form-control:focus {
+        border-color: #764ba2;
+        box-shadow: 0 0 0 0.2rem rgba(118, 75, 162, 0.25);
+        background-color: #fff;
+    }
+
+/* Buton Tasarımı */
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    transition: transform 0.2s;
+}
+
+    .btn-primary:hover {
+        transform: translateY(-2px); /* Üzerine gelince hafif yukarı kalksın */
+        box-shadow: 0 5px 15px rgba(118, 75, 162, 0.4);
+    }
+
+    .btn-primary:active {
+        transform: translateY(0);
+    }
+
+/* Hata Mesajı Kutusu */
+.alert-danger {
+    border-radius: 8px;
+    font-size: 0.9rem;
+}

@@ -1,0 +1,439 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using System.Net.Http.Headers
+@using System.Net.Http.Json
+@using Uný_Proje.Web.Client.Services
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject ProfilServis ProfilServis
+@inject SepetServis SepetServis
+@inject BildirimServis BildirimServis
+@inject ThemeService ThemeService
+@inject NavigationManager Navigation
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@implements IDisposable
+
+<AuthorizeView>
+    <Authorized>
+        <div class="top-navbar bg-white border-bottom shadow-sm">
+            <div class="container-fluid px-4 py-2 d-flex justify-content-end align-items-center gap-3">
+                @* ?? Dark Mode Toggle Component *@
+                <ThemeToggle />
+
+                @* Sipariþlerim Linki *@
+                <a href="/siparislerim" class="btn btn-outline-success" title="Sipariþlerim">
+                    <i class="bi bi-box-seam fs-5"></i>
+                </a>
+
+                @* Bildirimler Dropdown *@
+                <div class="dropdown">
+                    <button class="btn btn-outline-warning position-relative" 
+                            type="button" 
+                            id="bildirimlerDropdown" 
+                            data-bs-toggle="dropdown" 
+                            aria-expanded="false"
+                            title="Bildirimler">
+                        <i class="bi bi-bell fs-5"></i>
+                        @if (okunmamisBildirimSayisi > 0)
+                        {
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                @okunmamisBildirimSayisi
+                                <span class="visually-hidden">okunmamýþ bildirim</span>
+                            </span>
+                        }
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg" style="width: 350px; max-height: 400px; overflow-y: auto;">
+                        <li class="dropdown-header d-flex justify-content-between align-items-center">
+                            <span class="fw-bold">Bildirimler</span>
+                            @if (bildirimler.Any())
+                            {
+                                <button class="btn btn-sm btn-link text-decoration-none" @onclick="HepsiniOkunduIsaretle">
+                                    Tümünü Okundu Ýþaretle
+                                </button>
+                            }
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        
+                        @if (bildirimYukleniyor)
+                        {
+                            <li class="text-center py-3">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                <p class="small text-muted mt-2 mb-0">Yükleniyor...</p>
+                            </li>
+                        }
+                        else if (!bildirimler.Any())
+                        {
+                            <li class="text-center py-4">
+                                <i class="bi bi-bell-slash fs-1 text-muted"></i>
+                                <p class="small text-muted mt-2 mb-0">Henüz bildiriminiz yok</p>
+                            </li>
+                        }
+                        else
+                        {
+                            @foreach (var bildirim in bildirimler.Take(5))
+                            {
+                                <li>
+                                    <a class="dropdown-item @(bildirim.Okundu ? "" : "bg-light fw-semibold")" 
+                                       href="#" 
+                                       @onclick="() => BildirimTiklandi(bildirim)"
+                                       @onclick:preventDefault>
+                                        <div class="d-flex">
+                                            <div class="me-2">
+                                                @if (bildirim.Tip == "siparis")
+                                                {
+                                                    <i class="bi bi-box-seam text-success fs-5"></i>
+                                                }
+                                                else if (bildirim.Tip == "degerlendirme")
+                                                {
+                                                    <i class="bi bi-star-fill text-warning fs-5"></i>
+                                                }
+                                                else if (bildirim.Tip == "mesaj")
+                                                {
+                                                    <i class="bi bi-chat-dots-fill text-primary fs-5"></i>
+                                                }
+                                                else if (bildirim.Tip == "satis")
+                                                {
+                                                    <i class="bi bi-cash-coin text-info fs-5"></i>
+                                                }
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <p class="mb-1 small">@bildirim.Baslik</p>
+                                                <p class="mb-1 small text-muted">@bildirim.Mesaj</p>
+                                                <p class="mb-0 small text-muted">
+                                                    <i class="bi bi-clock"></i> @ZamanFarki(bildirim.OlusturmaTarihi)
+                                                </p>
+                                            </div>
+                                            @if (!bildirim.Okundu)
+                                            {
+                                                <div>
+                                                    <span class="badge bg-primary rounded-circle" style="width: 8px; height: 8px;"></span>
+                                                </div>
+                                            }
+                                        </div>
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                            }
+                            
+                            @if (bildirimler.Count > 5)
+                            {
+                                <li class="text-center">
+                                    <a href="/bildirimler" class="dropdown-item text-primary">
+                                        <i class="bi bi-arrow-right-circle"></i> Tüm Bildirimleri Gör (@bildirimler.Count)
+                                    </a>
+                                </li>
+                            }
+                        }
+                    </ul>
+                </div>
+
+                @* Sepet Linki *@
+                <a href="/sepetim" class="btn btn-outline-primary position-relative">
+                    <i class="bi bi-cart3 fs-5"></i>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                        @sepetSayisi
+                    </span>
+                </a>
+
+                @* Profil Linki *@
+                <a href="profilim" class="profile-link text-decoration-none d-flex align-items-center">
+                    <div class="profile-avatar">
+                        @if (!string.IsNullOrEmpty(profilResmiUrl))
+                        {
+                            <img src="@profilResmiUrl" 
+                                 alt="Profil Resmi" 
+                                 onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22 viewBox=%220 0 40 40%22%3E%3Ccircle cx=%2220%22 cy=%2220%22 r=%2220%22 fill=%22%230d6efd%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2218%22 font-family=%22Arial%22%3E@(context.User.Identity?.Name?.Substring(0, 1).ToUpper())%3C/text%3E%3C/svg%3E';" />
+                        }
+                        else
+                        {
+                            <img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22 viewBox=%220 0 40 40%22%3E%3Ccircle cx=%2220%22 cy=%2220%22 r=%2220%22 fill=%22%230d6efd%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2218%22 font-family=%22Arial%22%3E@(context.User.Identity?.Name?.Substring(0, 1).ToUpper())%3C/text%3E%3C/svg%3E" 
+                                 alt="Profil Resmi" />
+                        }
+                    </div>
+                    <span class="ms-2 text-dark fw-semibold">@context.User.Identity?.Name</span>
+                </a>
+            </div>
+        </div>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private string? profilResmiUrl;
+    private int sepetSayisi = 0;
+    private int okunmamisBildirimSayisi = 0;
+    private List<Uný_Proje.Web.Client.Services.BildirimDto> bildirimler = new();
+    private bool bildirimYukleniyor = false;
+    private System.Threading.Timer? bildirimTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ProfilServis.ProfilDegisti += OnProfilDegisti;
+        SepetServis.SepetGuncellendi += OnSepetGuncellendi;
+        ThemeService.ThemeChanged += OnThemeChanged;
+        
+        await ProfilResmiYukle();
+        await SepetSayisiGuncelle();
+        await BildirimleriYukle();
+
+        bildirimTimer = new System.Threading.Timer(async _ =>
+        {
+            await BildirimleriYukle();
+            await InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    private async void OnThemeChanged()
+    {
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async void OnProfilDegisti()
+    {
+        await ProfilResmiYukle();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async void OnSepetGuncellendi()
+    {
+        await SepetSayisiGuncelle();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ProfilResmiYukle()
+    {
+        try
+        {
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            if (!string.IsNullOrEmpty(token))
+            {
+                Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                var profil = await Http.GetFromJsonAsync<ProfilDto>("https://localhost:7000/api/kullanicilar/ben");
+                if (profil != null)
+                {
+                    profilResmiUrl = profil.ProfilResmiUrl;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Profil resmi yükleme hatasý: {ex.Message}");
+        }
+    }
+
+    private async Task SepetSayisiGuncelle()
+    {
+        try
+        {
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            if (!string.IsNullOrEmpty(token))
+            {
+                var (items, hata) = await SepetServis.SepetGetir(token);
+                sepetSayisi = items?.Count ?? 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Sepet sayýsý yükleme hatasý: {ex.Message}");
+            sepetSayisi = 0;
+        }
+    }
+
+    private async Task BildirimleriYukle()
+    {
+        try
+        {
+            bildirimYukleniyor = true;
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            
+            if (!string.IsNullOrEmpty(token))
+            {
+                var (sayi, hata1) = await BildirimServis.OkunmamisSayisi(token);
+                okunmamisBildirimSayisi = sayi;
+
+                var (liste, hata2) = await BildirimServis.BildirimleriGetir(token);
+                if (liste != null)
+                {
+                    bildirimler = liste;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[BILDIRIM] Yükleme hatasý: {ex.Message}");
+        }
+        finally
+        {
+            bildirimYukleniyor = false;
+        }
+    }
+
+    private async Task BildirimTiklandi(Uný_Proje.Web.Client.Services.BildirimDto bildirim)
+    {
+        try
+        {
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            if (!string.IsNullOrEmpty(token))
+            {
+                if (!bildirim.Okundu)
+                {
+                    await BildirimServis.OkunduIsaretle(bildirim.Id, token);
+                    bildirim.Okundu = true;
+                    okunmamisBildirimSayisi--;
+                }
+
+                if (bildirim.Tip == "siparis" && bildirim.IliskiliId.HasValue)
+                {
+                    Navigation.NavigateTo($"/siparis-detay/{bildirim.IliskiliId.Value}");
+                }
+                else if (bildirim.Tip == "mesaj")
+                {
+                    Navigation.NavigateTo("/mesajlarim");
+                }
+                else if (bildirim.Tip == "degerlendirme")
+                {
+                    Navigation.NavigateTo("/profilim");
+                }
+                else if (bildirim.Tip == "satis")
+                {
+                    Navigation.NavigateTo("/ilanlarim");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[BILDIRIM] Týklama hatasý: {ex.Message}");
+        }
+    }
+
+    private async Task HepsiniOkunduIsaretle()
+    {
+        try
+        {
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            if (!string.IsNullOrEmpty(token))
+            {
+                await BildirimServis.HepsiniOkunduIsaretle(token);
+                
+                foreach (var bildirim in bildirimler)
+                {
+                    bildirim.Okundu = true;
+                }
+                okunmamisBildirimSayisi = 0;
+                
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[BILDIRIM] Hepsini okundu iþaretleme hatasý: {ex.Message}");
+        }
+    }
+
+    private string ZamanFarki(DateTime tarih)
+    {
+        var fark = DateTime.Now - tarih;
+        
+        if (fark.TotalMinutes < 1)
+            return "Az önce";
+        if (fark.TotalMinutes < 60)
+            return $"{(int)fark.TotalMinutes} dakika önce";
+        if (fark.TotalHours < 24)
+            return $"{(int)fark.TotalHours} saat önce";
+        if (fark.TotalDays < 7)
+            return $"{(int)fark.TotalDays} gün önce";
+        
+        return tarih.ToString("dd.MM.yyyy");
+    }
+
+    public void Dispose()
+    {
+        ProfilServis.ProfilDegisti -= OnProfilDegisti;
+        SepetServis.SepetGuncellendi -= OnSepetGuncellendi;
+        ThemeService.ThemeChanged -= OnThemeChanged;
+        bildirimTimer?.Dispose();
+    }
+
+    private class ProfilDto
+    {
+        public string? ProfilResmiUrl { get; set; }
+    }
+}
+
+<style>
+    .top-navbar {
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+    }
+
+    .profile-link {
+        transition: all 0.3s ease;
+        padding: 0.5rem 1rem;
+        border-radius: 2rem;
+    }
+
+    .profile-link:hover {
+        background-color: #f8f9fa;
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .profile-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 2px solid #0d6efd;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #f8f9fa;
+    }
+
+    .profile-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .profile-link:hover .profile-avatar {
+        border-color: #0b5ed7;
+        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
+    }
+
+    .dropdown-menu {
+        border: none;
+        border-radius: 0.5rem;
+    }
+
+    .dropdown-item {
+        border-radius: 0.375rem;
+        margin: 0.25rem 0.5rem;
+        padding: 0.75rem;
+    }
+
+    .dropdown-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .dropdown-item.bg-light {
+        background-color: #e7f3ff !important;
+    }
+
+    .dropdown-item.bg-light:hover {
+        background-color: #d0e7ff !important;
+    }
+
+    @@keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.7;
+        }
+    }
+
+    .badge.bg-danger {
+        animation: pulse 2s infinite;
+    }
+</style>

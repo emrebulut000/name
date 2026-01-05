@@ -1,0 +1,181 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using Unı_Proje.Web.Client.Models
+@using Unı_Proje.Web.Client.Services
+@using Microsoft.AspNetCore.Components.Web
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject AdminServis AdminServis
+
+<div class="side-menu">
+
+    @* --- 1. LOGO ALANI --- *@
+    <div class="menu-header">
+        <a class="brand-logo" href="">
+           🛒 İkinci El Market
+        </a>
+        <button title="Menüyü Aç/Kapa" class="navbar-toggler d-md-none mt-2 text-white border-0" @onclick="ToggleNavMenu">
+            <i class="bi bi-list fs-1"></i>
+        </button>
+    </div>
+
+    @* --- 2. LİNKLER --- *@
+    <div class="@NavMenuCssClass nav-scrollable">
+        <nav class="flex-column mt-3">
+
+            <div class="nav-item">
+                <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                    <i class="bi bi-house-door-fill"></i> Ana Sayfa
+                </NavLink>
+            </div>
+
+            @* --- KATEGORİLER BÖLÜMÜ (YENİ) --- *@
+            <div class="mt-4 mb-2 px-3 text-white-50 small text-uppercase fw-bold">
+                Kategoriler
+            </div>
+
+            @if (kategoriler == null)
+            {
+                <div class="text-center text-white-50 small">Yükleniyor...</div>
+            }
+            else
+            {
+                @foreach (var kat in kategoriler)
+                {
+                    <div class="nav-item">
+                        @* Tıklayınca /kategori/5 gibi adrese gidecek *@
+                        <NavLink class="nav-link" href="@($"kategori/{kat.Id}")">
+                            <i class="bi bi-tag-fill"></i> @kat.Ad
+                        </NavLink>
+                    </div>
+                }
+            }
+
+            <div class="mt-4 mb-2 px-3 text-white-50 small text-uppercase fw-bold border-top border-white-50 pt-3">
+                Hesabım
+            </div>
+
+            <AuthorizeView>
+                <Authorized>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="ilanlarim">
+                            <i class="bi bi-collection-fill"></i> İlanlarım
+                        </NavLink>
+                    </div>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="favorilerim">
+                            <i class="bi bi-heart-fill"></i> Favorilerim
+                        </NavLink>
+                    </div>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="mesajlarim">
+                            <i class="bi bi-chat-dots-fill"></i> Mesajlarım
+                        </NavLink>
+                    </div>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="yeni-urun">
+                            <i class="bi bi-plus-circle-fill"></i> Yeni İlan Ekle
+                        </NavLink>
+                    </div>
+                    
+                    @* TEKLİF LİNKLERİ *@
+                    <div class="mt-4 mb-2 px-3 text-white-50 small text-uppercase fw-bold border-top border-white-50 pt-3">
+                        Teklifler
+                    </div>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="tekliflerim">
+                            <i class="bi bi-tag-fill"></i> Gönderdiğim Teklifler
+                        </NavLink>
+                    </div>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="gelen-teklifler">
+                            <i class="bi bi-inbox-fill"></i> Gelen Teklifler
+                        </NavLink>
+                    </div>
+                    
+                    @* ADMİN LİNKİ (SADECE ADMİNLERE GÖRÜNÜR) *@
+                    @if (isAdmin)
+                    {
+                        <div class="mt-4 mb-2 px-3 text-white-50 small text-uppercase fw-bold border-top border-white-50 pt-3">
+                            Yönetim
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link text-warning fw-bold" href="admin">
+                                <i class="bi bi-shield-lock-fill"></i> Admin Paneli
+                            </NavLink>
+                        </div>
+                        <div class="nav-item">
+                            <NavLink class="nav-link text-info" href="theme-demo">
+                                <i class="bi bi-moon-stars-fill"></i> Dark Mode Demo
+                            </NavLink>
+                        </div>
+                    }
+                    
+                    <div class="nav-item mt-2">
+                        <NavLink class="nav-link text-danger fw-bold" href="logout">
+                            <i class="bi bi-box-arrow-left"></i> Çıkış Yap
+                        </NavLink>
+                    </div>
+                </Authorized>
+                <NotAuthorized>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="login">
+                            <i class="bi bi-box-arrow-in-right"></i> Giriş Yap
+                        </NavLink>
+                    </div>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="register">
+                            <i class="bi bi-person-plus-fill"></i> Kayıt Ol
+                        </NavLink>
+                    </div>
+                </NotAuthorized>
+            </AuthorizeView>
+        </nav>
+    </div>
+
+
+</div>
+
+@code {
+    private bool collapseNavMenu = true;
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse d-md-block" : "d-block";
+
+    // Kategorileri tutacak liste
+    private List<KategoriViewModel>? kategoriler;
+    private bool isAdmin = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Backend'den kategorileri çekip menüye diziyoruz
+            kategoriler = await Http.GetFromJsonAsync<List<KategoriViewModel>>("https://localhost:7130/api/kategoriler");
+            
+            Console.WriteLine($"[NAVMENU] {kategoriler?.Count ?? 0} kategori yüklendi");
+            
+            // Admin kontrolü
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            if (!string.IsNullOrEmpty(token))
+            {
+                isAdmin = await AdminServis.AdminMi(token);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[NAVMENU HATA] Kategoriler yüklenemedi: {ex.Message}");
+            kategoriler = new List<KategoriViewModel>(); // Boş liste döndür (crash önleme)
+        }
+    }
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+
+    // Basit Model
+    public class KategoriViewModel
+    {
+        public int Id { get; set; }
+        public string Ad { get; set; } = "";
+    }
+}

@@ -1,0 +1,23 @@
+﻿@page "/logout"
+@using Unı_Proje.Web.Client.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@* Prerender'ı kapatıyoruz ki sunucuda çalışmaya kalkıp hata vermesin *@
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@inject AuthenticationStateProvider AuthProvider
+@inject NavigationManager Navigation
+
+<h3>Çıkış yapılıyor...</h3>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        // 1. CustomAuthStateProvider üzerinden çıkış işlemini tetikle
+        var customAuth = (CustomAuthStateProvider)AuthProvider;
+        await customAuth.MarkUserAsLoggedOut();
+
+        // 2. Kullanıcıyı ana sayfaya yönlendir ve sayfayı YENİLE (forceLoad: true)
+        // Bu, hafızadaki eski verilerin tamamen temizlenmesini garanti eder.
+        Navigation.NavigateTo("/", true);
+    }
+}

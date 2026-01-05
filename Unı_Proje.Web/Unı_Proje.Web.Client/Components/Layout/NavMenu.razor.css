@@ -1,0 +1,111 @@
+/* 1. MENÜNÜN GENEL GÖVDESÝ (SOL TARAFTAKÝ SÜTUN) */
+.side-menu {
+    height: 100vh; /* Tüm ekran boyu */
+    background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%); /* Mavi Modern Gradyan */
+    color: white;
+    box-shadow: 4px 0 15px rgba(0,0,0,0.2); /* Hafif gölge */
+    display: flex;
+    flex-direction: column;
+    width: 250px; /* Geniþlik sabit */
+    transition: all 0.3s ease;
+}
+
+/* 2. LOGO VE BAÞLIK ALANI */
+.menu-header {
+    padding: 1.5rem;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.1); /* Ýnce çizgi */
+    background-color: rgba(0,0,0,0.1);
+}
+
+.brand-logo {
+    font-size: 1.4rem;
+    font-weight: 700; /* Kalýn yazý */
+    color: #fff;
+    text-decoration: none;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+/* 3. LÝNKLERÝN BULUNDUÐU ORTA ALAN */
+.nav-scrollable {
+    flex-grow: 1; /* Boþluðu doldur */
+    overflow-y: auto; /* Sýðmazsa kaydýrma çubuðu çýksýn */
+    padding: 1rem;
+}
+
+.nav-item {
+    margin-bottom: 0.5rem;
+    pointer-events: auto; /* Týklanabilir olsun */
+}
+
+/* Linklerin Genel Görünümü */
+.nav-link {
+    color: rgba(255,255,255,0.85) !important;
+    border-radius: 12px; /* Kenarlarý yuvarlatýlmýþ (Hap þeklinde) */
+    padding: 0.8rem 1rem;
+    transition: all 0.3s ease; /* Animasyonlu geçiþ */
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 12px; /* Ýkon ve yazý arasý boþluk */
+    text-decoration: none;
+    cursor: pointer; /* Fare imleci el þeklinde */
+    pointer-events: auto; /* Týklanabilir */
+}
+
+    /* Linkin Üzerine Gelince (Hover) */
+    .nav-link:hover {
+        background-color: rgba(255, 255, 255, 0.15); /* Hafif beyazlýk */
+        color: #fff !important;
+        transform: translateX(5px); /* Hafif saða kayma efekti */
+    }
+
+    /* Aktif Sayfa (Seçili Olan) */
+    .nav-link.active {
+        background-color: #ffffff; /* Beyaz zemin */
+        color: #1e3c72 !important; /* Mavi yazý */
+        font-weight: bold;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+/* Ýkonlarýn Boyutu */
+.bi {
+    font-size: 1.2rem;
+}
+
+/* 4. ALT KULLANICI PROFÝL ALANI (SABÝT) */
+.user-profile-section {
+    margin-top: auto; /* En alta it */
+    padding: 1.5rem;
+    background: rgba(0,0,0,0.2); /* Koyu zemin */
+    text-align: center;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.user-name {
+    font-size: 1rem;
+    color: #ffd700; /* Altýn Sarýsý Ýsim */
+    font-weight: bold;
+    margin-bottom: 2px;
+}
+
+/* 5. MOBÝL GÖRÜNÜM AYARLARI (TELEFONLAR ÝÇÝN) */
+@media (max-width: 641px) {
+    .side-menu {
+        width: 100%; /* Mobilde tam geniþlik */
+        height: auto;
+        position: relative;
+    }
+
+    .nav-scrollable {
+        max-height: 300px; /* Çok uzamasýn */
+    }
+
+    .user-profile-section {
+        display: none; /* Mobilde yer kaplamasýn diye profili gizleyebiliriz */
+    }
+}

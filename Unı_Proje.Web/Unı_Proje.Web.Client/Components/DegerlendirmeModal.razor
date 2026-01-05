@@ -1,0 +1,228 @@
+@using Uný_Proje.Web.Client.Services
+@using Microsoft.AspNetCore.Components
+@inject DegerlendirmeServis DegerlendirmeServis
+@inject IJSRuntime JSRuntime
+
+<div class="modal fade" id="degerlendirmeModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-star-fill me-2"></i>
+                    Satýcýyý Deðerlendir
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                @if (!string.IsNullOrEmpty(hataMesaji))
+                {
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        @hataMesaji
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(basariMesaji))
+                {
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle me-2"></i>
+                        @basariMesaji
+                    </div>
+                }
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Puanýnýz (1-5 Yýldýz)</label>
+                    <div class="d-flex gap-3 justify-content-center py-3 star-rating">
+                        @for (int i = 1; i <= 5; i++)
+                        {
+                            int yildiz = i;
+                            <button type="button" 
+                                    class="btn-star" 
+                                    @onclick="() => YildizSec(yildiz)"
+                                    title="@yildiz yýldýz">
+                                @if (yildiz <= puan)
+                                {
+                                    <span class="star-filled">@((MarkupString)"&#9733;")</span>
+                                }
+                                else
+                                {
+                                    <span class="star-empty">@((MarkupString)"&#9734;")</span>
+                                }
+                            </button>
+                        }
+                    </div>
+                    <p class="text-center text-muted fw-bold">@((MarkupString)PuanAciklama())</p>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Yorumunuz (Ýsteðe Baðlý)</label>
+                    <textarea class="form-control" 
+                              rows="4" 
+                              placeholder="Satýcý hakkýndaki deneyiminizi paylaþýn..."
+                              maxlength="500"
+                              @bind="yorum"></textarea>
+                    <small class="text-muted">@(yorum?.Length ?? 0) / 500 karakter</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Ýptal
+                </button>
+                <button type="button" 
+                        class="btn btn-primary" 
+                        @onclick="DegerlendirmeGonder"
+                        disabled="@(kaydediliyor || puan == 0)">
+                    @if (kaydediliyor)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>Kaydediliyor...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-send me-2"></i>
+                        <span>Gönder</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int SiparisId { get; set; }
+    [Parameter] public EventCallback OnDegerlendirmeYapildi { get; set; }
+
+    private int puan = 0;
+    private string? yorum;
+    private bool kaydediliyor = false;
+    private string? hataMesaji;
+    private string? basariMesaji;
+
+    private void YildizSec(int secilen)
+    {
+        puan = secilen;
+        hataMesaji = null;
+    }
+
+    private string PuanAciklama()
+    {
+        return puan switch
+        {
+            5 => "&#9733;&#9733;&#9733;&#9733;&#9733; Mükemmel!",
+            4 => "&#9733;&#9733;&#9733;&#9733;&#9734; Çok Ýyi",
+            3 => "&#9733;&#9733;&#9733;&#9734;&#9734; Ýyi",
+            2 => "&#9733;&#9733;&#9734;&#9734;&#9734; Orta",
+            1 => "&#9733;&#9734;&#9734;&#9734;&#9734; Kötü",
+            _ => "Lütfen bir puan seçin"
+        };
+    }
+
+    private async Task DegerlendirmeGonder()
+    {
+        if (puan == 0)
+        {
+            hataMesaji = "Lütfen bir puan seçin.";
+            return;
+        }
+
+        kaydediliyor = true;
+        hataMesaji = null;
+        basariMesaji = null;
+
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+
+            if (string.IsNullOrEmpty(token))
+            {
+                hataMesaji = "Oturumunuz sona erdi. Lütfen tekrar giriþ yapýn.";
+                kaydediliyor = false;
+                return;
+            }
+
+            Console.WriteLine($"[DEGERLENDIRME] Sipariþ {SiparisId} için deðerlendirme gönderiliyor...");
+
+            var dto = new DegerlendirmeOlusturDto
+            {
+                SiparisId = SiparisId,
+                Puan = puan,
+                Yorum = yorum
+            };
+
+            var (basarili, mesaj) = await DegerlendirmeServis.DegerlendirmeYap(dto, token);
+
+            Console.WriteLine($"[DEGERLENDIRME] Sonuç: {(basarili ? "Baþarýlý" : "Hata")} - {mesaj}");
+
+            if (basarili)
+            {
+                basariMesaji = mesaj;
+                await Task.Delay(1500); // Kullanýcý mesajý görsün
+
+                // Modal'ý kapat (Bootstrap 5 API kullanarak)
+                await JSRuntime.InvokeVoidAsync("eval", @"
+                    var modal = bootstrap.Modal.getInstance(document.getElementById('degerlendirmeModal'));
+                    if (modal) modal.hide();
+                ");
+
+                // Parent'ý bilgilendir
+                await OnDegerlendirmeYapildi.InvokeAsync();
+
+                // Formu sýfýrla
+                puan = 0;
+                yorum = null;
+                hataMesaji = null;
+                basariMesaji = null;
+            }
+            else
+            {
+                hataMesaji = mesaj;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEGERLENDIRME HATA] {ex.Message}");
+            hataMesaji = $"Beklenmeyen hata: {ex.Message}";
+        }
+        finally
+        {
+            kaydediliyor = false;
+        }
+    }
+}
+
+<style>
+    .star-rating {
+        user-select: none;
+    }
+
+    .btn-star {
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+
+    .btn-star:hover {
+        transform: scale(1.2);
+    }
+
+    .btn-star:active {
+        transform: scale(0.95);
+    }
+
+    .star-filled {
+        font-size: 3rem;
+        color: #ffc107;
+        text-shadow: 0 2px 4px rgba(255, 193, 7, 0.3);
+    }
+
+    .star-empty {
+        font-size: 3rem;
+        color: #dee2e6;
+    }
+
+    .star-empty:hover {
+        color: #ffc107;
+    }
+</style>

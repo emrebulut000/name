@@ -1,0 +1,355 @@
+﻿@page "/yeni-urun"
+@using Unı_Proje.Web.Client.Models
+@using System.Net.Http.Json
+@using System.Net.Http.Headers
+@using System.Text.Json
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Yeni İlan Ekle</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        <h3>Yeni İlan Ekle</h3>
+
+        <EditForm Model="@yeniUrun" OnValidSubmit="HandleValidSubmit" Context="formContext">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-3">
+                <label class="form-label">Ürün Adı</label>
+                <InputText @bind-Value="yeniUrun.Ad" class="form-control" placeholder="Örn: Bisiklet" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Açıklama</label>
+                <InputTextArea @bind-Value="yeniUrun.Aciklama" class="form-control" rows="3" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Fiyat</label>
+                <InputNumber @bind-Value="yeniUrun.Fiyat" class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Kategori</label>
+                <InputSelect @bind-Value="yeniUrun.KategoriId" class="form-control">
+                    <option value="0">Kategori Seçiniz...</option>
+                    @if (kategoriler != null)
+                    {
+                        @foreach (var kat in kategoriler)
+                        {
+                            <option value="@kat.Id">@kat.Ad</option>
+                        }
+                    }
+                </InputSelect>
+            </div>
+
+            @* KONUM ALANI - İL/İLÇE SEÇİCİ *@
+            <div class="mb-3">
+                <label class="form-label">İl</label>
+                <select class="form-select" @onchange="IlSecildi" value="@seciliIl">
+                    <option value="">-- İl Seçiniz --</option>
+                    @if (iller != null)
+                    {
+                        @foreach (var il in iller)
+                        {
+                            <option value="@il">@il</option>
+                        }
+                    }
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">İlçe</label>
+                <select class="form-select" @bind="seciliIlce" disabled="@(!ilceler.Any())">
+                    <option value="">-- İlçe Seçiniz --</option>
+                    @foreach (var ilce in ilceler)
+                    {
+                        <option value="@ilce">@ilce</option>
+                    }
+                </select>
+                @if (!string.IsNullOrEmpty(seciliIl) && !ilceler.Any())
+                {
+                    <div class="form-text text-warning">Önce il seçmelisiniz.</div>
+                }
+            </div>
+
+            @* --- RESİM YÜKLEME ALANI (ÇOKLU) --- *@
+            <div class="mb-3">
+                <label class="form-label">
+                    <i class="bi bi-images me-2"></i>
+                    Ürün Resimleri (En fazla 5, birden fazla seçebilirsiniz)
+                </label>
+                <InputFile OnChange="ResimYukle" class="form-control" multiple accept="image/*" />
+                <small class="text-muted">Ctrl veya Shift tuşu ile birden fazla resim seçebilirsiniz</small>
+
+                @if (yuklenecekResimler.Any())
+                {
+                    <div class="mt-3">
+                        <p class="text-success fw-bold">✅ @yuklenecekResimler.Count Resim Seçildi:</p>
+                        <div class="row g-2">
+                            @for (int i = 0; i < yuklenecekResimler.Count; i++)
+                            {
+                                var index = i;
+                                var resim = yuklenecekResimler[i];
+                                <div class="col-6 col-md-4">
+                                    <div class="card">
+                                        <img src="@resim" class="card-img-top" style="height:150px; object-fit:cover;" alt="Resim @(i+1)" />
+                                        <div class="card-body p-2">
+                                            <button type="button" class="btn btn-sm btn-danger w-100" @onclick="() => ResimSil(index)">
+                                                <i class="bi bi-trash"></i> Sil
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+                else if (yukleniyor)
+                {
+                    <div class="mt-2 text-primary">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        Resimler yükleniyor, lütfen bekleyin...
+                    </div>
+                }
+            </div>
+            @* -------------------------- *@
+
+            @* --- 📦 STOK MİKTARI --- *@
+            <div class="mb-3">
+                <label class="form-label">
+                    <i class="bi bi-box-seam me-2"></i>
+                    Stok Miktarı
+                </label>
+                <InputNumber @bind-Value="yeniUrun.StokMiktari" class="form-control" min="0" />
+                <small class="text-muted">Ürününüz kaç adet stokta?</small>
+            </div>
+            @* -------------------------- *@
+
+            <button type="submit" class="btn btn-primary" disabled="@yukleniyor">
+                @(yukleniyor ? "İşlem Sürüyor..." : "İlanı Ekle")
+            </button>
+        </EditForm>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger mt-3">@errorMessage</div>
+        }
+    </Authorized>
+    <NotAuthorized>
+        <h3>Yetkisiz Erişim</h3>
+        <p>İlan eklemek için lütfen <a href="login">giriş yapınız</a>.</p>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+private YeniUrunViewModel yeniUrun = new YeniUrunViewModel();
+private List<KategoriViewModel>? kategoriler;
+private string? errorMessage;
+private bool yukleniyor = false;
+private List<string> yuklenecekResimler = new List<string>(); // Base64 resim listesi
+private int yeniEklenenUrunId = 0; // Yeni eklenen ürünün ID'si
+
+// Konum için yeni alanlar
+private List<string> iller = new List<string>();
+private List<string> ilceler = new List<string>();
+private string seciliIl = "";
+private string seciliIlce = "";
+
+protected override async Task OnInitializedAsync()
+{
+    try
+    {
+        kategoriler = await Http.GetFromJsonAsync<List<KategoriViewModel>>("https://localhost:7130/api/kategoriler");
+            
+        // İlleri API'den yükle
+        iller = await Http.GetFromJsonAsync<List<string>>("https://localhost:7130/api/konum/iller") ?? new List<string>();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Yükleme Hatası: {ex.Message}");
+    }
+}
+
+private async Task IlSecildi(ChangeEventArgs e)
+{
+    seciliIl = e.Value?.ToString() ?? "";
+    seciliIlce = ""; // İlçe seçimini sıfırla
+    ilceler.Clear();
+
+    if (!string.IsNullOrWhiteSpace(seciliIl))
+    {
+        try
+        {
+            ilceler = await Http.GetFromJsonAsync<List<string>>($"https://localhost:7130/api/konum/ilceler/{seciliIl}") ?? new List<string>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"İlçe yükleme hatası: {ex.Message}");
+        }
+    }
+}
+
+    // ÇOKLU RESİM YÜKLEME
+    private async Task ResimYukle(InputFileChangeEventArgs e)
+    {
+        var dosyalar = e.GetMultipleFiles(5); // Max 5 dosya
+        
+        if (dosyalar.Count + yuklenecekResimler.Count > 5)
+        {
+            errorMessage = "En fazla 5 resim ekleyebilirsiniz!";
+            await JSRuntime.InvokeVoidAsync("alert", "En fazla 5 resim ekleyebilirsiniz!");
+            return;
+        }
+
+        try
+        {
+            yukleniyor = true;
+            errorMessage = null;
+
+            foreach (var dosya in dosyalar)
+            {
+                // Max 5MB
+                if (dosya.Size > 5 * 1024 * 1024)
+                {
+                    await JSRuntime.InvokeVoidAsync("alert", $"{dosya.Name} çok büyük! Max 5MB olmalı.");
+                    continue;
+                }
+
+                // Dosyayı Base64'e çevir
+                using var stream = dosya.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                var bytes = ms.ToArray();
+                var base64 = Convert.ToBase64String(bytes);
+                var resimUrl = $"data:{dosya.ContentType};base64,{base64}";
+
+                yuklenecekResimler.Add(resimUrl);
+            }
+
+            Console.WriteLine($"✅ {dosyalar.Count} resim eklendi. Toplam: {yuklenecekResimler.Count}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Resim hatası: {ex.Message}";
+            Console.WriteLine($"EXCEPTION: {ex}");
+        }
+        finally
+        {
+            yukleniyor = false;
+        }
+    }
+
+    private void ResimSil(int index)
+    {
+        yuklenecekResimler.RemoveAt(index);
+        Console.WriteLine($"Resim silindi. Kalan: {yuklenecekResimler.Count}");
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        errorMessage = null;
+        yukleniyor = true;
+
+        if (yeniUrun.KategoriId == 0)
+        {
+            errorMessage = "Lütfen bir kategori seçiniz.";
+            yukleniyor = false;
+            return;
+        }
+
+        if (!yuklenecekResimler.Any())
+        {
+            errorMessage = "Lütfen en az 1 resim yükleyin!";
+            yukleniyor = false;
+            return;
+        }
+
+        // Konum bilgisini birleştir
+        if (!string.IsNullOrWhiteSpace(seciliIl) && !string.IsNullOrWhiteSpace(seciliIlce))
+        {
+            yeniUrun.Konum = $"{seciliIl}, {seciliIlce}";
+        }
+        else if (!string.IsNullOrWhiteSpace(seciliIl))
+        {
+            yeniUrun.Konum = seciliIl;
+        }
+
+        // İlk resmi ResimUrl olarak ayarla
+        yeniUrun.ResimUrl = yuklenecekResimler.First();
+
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "authToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                errorMessage = "Oturum süreniz dolmuş.";
+                yukleniyor = false;
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            // 1. Ürünü ekle
+            var response = await Http.PostAsJsonAsync("https://localhost:7130/api/urunler/ekle", yeniUrun);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var eklenenUrun = await response.Content.ReadFromJsonAsync<YeniEklenenUrun>();
+                yeniEklenenUrunId = eklenenUrun?.Id ?? 0;
+
+                Console.WriteLine($"✅ ÜRÜN EKLENDİ! ID: {yeniEklenenUrunId}");
+
+                // 2. Resimleri ekle (ilk resim zaten eklendi, diğerlerini ekle)
+                if (yuklenecekResimler.Count > 1 && yeniEklenenUrunId > 0)
+                {
+                    var cokluResimDto = new
+                    {
+                        UrunId = yeniEklenenUrunId,
+                        ResimUrlListesi = yuklenecekResimler,
+                        AnaResimIndex = 0
+                    };
+
+                    var resimResponse = await Http.PostAsJsonAsync("https://localhost:7130/api/UrunResim/coklu", cokluResimDto);
+                    
+                    if (resimResponse.IsSuccessStatusCode)
+                    {
+                        Console.WriteLine($"✅ {yuklenecekResimler.Count} resim eklendi!");
+                    }
+                }
+
+                await JSRuntime.InvokeVoidAsync("alert", "✅ Ürün başarıyla eklendi!");
+                Navigation.NavigateTo("/ilanlarim");
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Hata: {errorContent}";
+                Console.WriteLine($"KAYIT HATASI: {errorContent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Bağlantı Hatası: {ex.Message}";
+            Console.WriteLine($"EXCEPTION: {ex}");
+        }
+        finally
+        {
+            Http.DefaultRequestHeaders.Authorization = null;
+            yukleniyor = false;
+        }
+    }
+
+    // Helper class
+    private class YeniEklenenUrun
+    {
+        public int Id { get; set; }
+    }
+}

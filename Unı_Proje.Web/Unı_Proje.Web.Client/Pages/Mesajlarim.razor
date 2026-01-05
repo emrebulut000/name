@@ -1,0 +1,360 @@
+@page "/mesajlarim"
+@page "/mesajlarim/{KarsiTarafId:int}"
+@using Uný_Proje.Web.Client.Services
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@inject MesajServis MesajServis
+
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+
+<PageTitle>Mesajlarým</PageTitle>
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        @* SOL PANEL - KONUÞMA LÝSTESÝ *@
+        <div class="col-md-4 col-lg-3 border-end">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">
+                    <i class="bi bi-chat-dots-fill text-primary me-2"></i>
+                    Mesajlarým
+                </h4>
+                @if (okunmamisToplamSayisi > 0)
+                {
+                    <span class="badge bg-danger rounded-pill">@okunmamisToplamSayisi</span>
+                }
+            </div>
+
+            @if (konusmaYukleniyor)
+            {
+                <div class="text-center my-5">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="mt-2 text-muted">Yükleniyor...</p>
+                </div>
+            }
+            else if (!konusmalar.Any())
+            {
+                <div class="text-center my-5">
+                    <div class="fs-3"><span>&#128172;</span></div>
+                    <p class="text-muted mt-2">Henüz mesajýnýz yok</p>
+                </div>
+            }
+            else
+            {
+                <div class="list-group">
+                    @foreach (var konusma in konusmalar)
+                    {
+                        <a href="/mesajlarim/@konusma.KarsiTarafId" 
+                           class="list-group-item list-group-item-action @(KarsiTarafId == konusma.KarsiTarafId ? "active" : "")">
+                            <div class="d-flex w-100 align-items-center">
+                                <img src="@(konusma.KarsiTarafResim ?? "https://via.placeholder.com/50")" 
+                                     class="rounded-circle me-2" 
+                                     width="50" 
+                                     height="50" 
+                                     style="object-fit: cover;"
+                                     alt="@konusma.KarsiTarafAdi">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">@konusma.KarsiTarafAdi</h6>
+                                        <small>@FormatTarih(konusma.SonMesajTarihi)</small>
+                                    </div>
+                                    <p class="mb-1 small text-truncate">
+                                        @if (konusma.BenGonderdim)
+                                        {
+                                            <i class="bi bi-check2-all text-primary"></i>
+                                        }
+                                        @konusma.SonMesaj
+                                    </p>
+                                    @if (!string.IsNullOrEmpty(konusma.UrunAd))
+                                    {
+                                        <small class="text-muted">
+                                            <i class="bi bi-tag"></i> @konusma.UrunAd
+                                        </small>
+                                    }
+                                </div>
+                                @if (konusma.OkunmamisSayisi > 0)
+                                {
+                                    <span class="badge bg-danger rounded-pill ms-2">@konusma.OkunmamisSayisi</span>
+                                }
+                            </div>
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+
+        @* SAÐ PANEL - MESAJLAÞMA ALANI *@
+        <div class="col-md-8 col-lg-9">
+            @if (KarsiTarafId.HasValue)
+            {
+                <div class="d-flex flex-column h-100">
+                    @* Üst Bar *@
+                    <div class="border-bottom p-3 bg-light">
+                        <div class="d-flex align-items-center">
+                            @if (seciliKonusma != null)
+                            {
+                                <img src="@(seciliKonusma.KarsiTarafResim ?? "https://via.placeholder.com/40")" 
+                                     class="rounded-circle me-2" 
+                                     width="40" 
+                                     height="40" 
+                                     style="object-fit: cover;"
+                                     alt="@seciliKonusma.KarsiTarafAdi">
+                                <div>
+                                    <h5 class="mb-0">@seciliKonusma.KarsiTarafAdi</h5>
+                                    @if (!string.IsNullOrEmpty(seciliKonusma.UrunAd))
+                                    {
+                                        <small class="text-muted">
+                                            <i class="bi bi-tag"></i> @seciliKonusma.UrunAd
+                                        </small>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    @* Mesaj Listesi *@
+                    <div class="flex-grow-1 overflow-auto p-3" style="max-height: 500px;" id="mesajAlani">
+                        @if (mesajYukleniyor)
+                        {
+                            <div class="text-center my-5">
+                                <div class="spinner-border text-primary"></div>
+                            </div>
+                        }
+                        else if (!mesajlar.Any())
+                        {
+                            <div class="text-center my-5">
+                                <p class="text-muted">Henüz mesaj yok. Ýlk mesajý siz gönderin!</p>
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var mesaj in mesajlar)
+                            {
+                                var benGonderdim = mesaj.GonderenId == aktifKullaniciId;
+                                <div class="mb-3 d-flex @(benGonderdim ? "justify-content-end" : "justify-content-start")">
+                                    <div class="@(benGonderdim ? "bg-primary text-white" : "bg-light") p-3 rounded" style="max-width: 70%;">
+                                        @if (mesaj.UrunId.HasValue && !string.IsNullOrEmpty(mesaj.UrunAd))
+                                        {
+                                            <div class="small mb-2 pb-2 border-bottom @(benGonderdim ? "border-white" : "border-secondary")">
+                                                <i class="bi bi-tag"></i> @mesaj.UrunAd
+                                            </div>
+                                        }
+                                        <p class="mb-1">@mesaj.Icerik</p>
+                                        <small class="@(benGonderdim ? "text-white-50" : "text-muted")">
+                                            @mesaj.GonderimTarihi.ToString("HH:mm")
+                                            @if (benGonderdim)
+                                            {
+                                                @if (mesaj.Okundu)
+                                                {
+                                                    <i class="bi bi-check2-all ms-1"></i>
+                                                }
+                                                else
+                                                {
+                                                    <i class="bi bi-check2 ms-1"></i>
+                                                }
+                                            }
+                                        </small>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+
+                    @* Mesaj Gönderme Alaný *@
+                    <div class="border-top p-3">
+                        <div class="input-group">
+                            <input type="text" 
+                                   class="form-control" 
+                                   placeholder="Mesajýnýzý yazýn..." 
+                                   @bind="yeniMesaj"
+                                   @onkeypress="@((e) => { if (e.Key == "Enter") MesajGonderAsync(); })" />
+                            <button class="btn btn-primary" @onclick="MesajGonderAsync" disabled="@mesajGonderiliyor">
+                                @if (mesajGonderiliyor)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                }
+                                <i class="bi bi-send-fill"></i> Gönder
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="text-center my-5">
+                    <div class="fs-1"><span>&#128172;</span></div>
+                    <h5 class="text-muted mt-3">Bir konuþma seçin</h5>
+                    <p class="text-muted">Mesajlaþmaya baþlamak için sol taraftan bir konuþma seçin</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int? KarsiTarafId { get; set; }
+
+    private List<KonusmaItem> konusmalar = new();
+    private List<MesajItem> mesajlar = new();
+    private KonusmaItem? seciliKonusma;
+    private string yeniMesaj = "";
+    private bool konusmaYukleniyor = true;
+    private bool mesajYukleniyor = false;
+    private bool mesajGonderiliyor = false;
+    private int okunmamisToplamSayisi = 0;
+    private int? aktifKullaniciId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await KonusmalarYukle();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (KarsiTarafId.HasValue)
+        {
+            await MesajlariYukle();
+        }
+    }
+
+    private async Task KonusmalarYukle()
+    {
+        konusmaYukleniyor = true;
+
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            var (items, hata) = await MesajServis.KonusmalarGetir(token);
+            
+            if (string.IsNullOrEmpty(hata))
+            {
+                konusmalar = items;
+                okunmamisToplamSayisi = konusmalar.Sum(k => k.OkunmamisSayisi);
+                
+                if (KarsiTarafId.HasValue)
+                {
+                    seciliKonusma = konusmalar.FirstOrDefault(k => k.KarsiTarafId == KarsiTarafId.Value);
+                }
+            }
+
+            // Aktif kullanýcý ID'sini al (Port 7000'e güncellendi)
+            var profil = await Http.GetFromJsonAsync<ProfilDto>("https://localhost:7000/api/kullanicilar/ben");
+            aktifKullaniciId = profil?.Id;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Konuþma yükleme hatasý: {ex.Message}");
+        }
+        finally
+        {
+            konusmaYukleniyor = false;
+        }
+    }
+
+    private async Task MesajlariYukle()
+    {
+        if (!KarsiTarafId.HasValue) return;
+
+        mesajYukleniyor = true;
+
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            var (items, hata) = await MesajServis.KonusmaGetir(KarsiTarafId.Value, token);
+            
+            if (string.IsNullOrEmpty(hata))
+            {
+                mesajlar = items;
+                
+                // Scroll en alta
+                await Task.Delay(100);
+                await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('mesajAlani').scrollTop = document.getElementById('mesajAlani').scrollHeight");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Mesaj yükleme hatasý: {ex.Message}");
+        }
+        finally
+        {
+            mesajYukleniyor = false;
+        }
+    }
+
+    private async Task MesajGonderAsync()
+    {
+        if (string.IsNullOrWhiteSpace(yeniMesaj) || !KarsiTarafId.HasValue) return;
+
+        mesajGonderiliyor = true;
+
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            var dto = new MesajGonderDto
+            {
+                AliciId = KarsiTarafId.Value,
+                UrunId = seciliKonusma?.UrunId,
+                Icerik = yeniMesaj
+            };
+
+            var sonuc = await MesajServis.MesajGonder(dto, token);
+            
+            if (sonuc.BasariliMi)
+            {
+                yeniMesaj = "";
+                await MesajlariYukle();
+                await KonusmalarYukle();
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"? {sonuc.Mesaj}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Hata: {ex.Message}");
+        }
+        finally
+        {
+            mesajGonderiliyor = false;
+        }
+    }
+
+    private string FormatTarih(DateTime tarih)
+    {
+        var fark = DateTime.Now - tarih;
+        
+        if (fark.TotalMinutes < 1) return "Þimdi";
+        if (fark.TotalHours < 1) return $"{(int)fark.TotalMinutes}dk önce";
+        if (fark.TotalDays < 1) return $"{(int)fark.TotalHours}s önce";
+        if (fark.TotalDays < 7) return $"{(int)fark.TotalDays}g önce";
+        
+        return tarih.ToString("dd MMM");
+    }
+
+    private class ProfilDto
+    {
+        public int Id { get; set; }
+    }
+}

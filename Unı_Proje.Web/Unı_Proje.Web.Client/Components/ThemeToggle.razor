@@ -1,0 +1,186 @@
+@using Uný_Proje.Web.Client.Services
+@inject ThemeService ThemeService
+@implements IDisposable
+
+<div class="theme-toggle-container">
+    <button class="theme-toggle-btn @(ThemeService.IsDarkMode ? "dark" : "")" 
+            @onclick="ToggleTheme"
+            title="@(ThemeService.IsDarkMode ? "Aydýnlýk Tema" : "Karanlýk Tema")">
+        <div class="theme-toggle-slider">
+            @if (ThemeService.IsDarkMode)
+            {
+                <i class="bi bi-moon-stars-fill theme-icon"></i>
+            }
+            else
+            {
+                <i class="bi bi-sun-fill theme-icon"></i>
+            }
+        </div>
+    </button>
+    
+    @if (showLabel)
+    {
+        <span class="theme-label">
+            @(ThemeService.IsDarkMode ? "Karanlýk Mod" : "Aydýnlýk Mod")
+        </span>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public bool showLabel { get; set; } = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Console.WriteLine("[THEME TOGGLE] ?? Component baþlatýldý");
+        ThemeService.ThemeChanged += OnThemeChanged;
+        await SyncTheme();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Console.WriteLine("[THEME TOGGLE] ?? Ýlk render sonrasý tema kontrol ediliyor");
+            await SyncTheme();
+            StateHasChanged();
+        }
+    }
+
+    private async Task SyncTheme()
+    {
+        try
+        {
+            var currentTheme = await ThemeService.GetCurrentThemeAsync();
+            Console.WriteLine($"[THEME TOGGLE] ? Tema senkronize edildi: {currentTheme}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[THEME TOGGLE] ? Hata: {ex.Message}");
+        }
+    }
+
+    private async Task ToggleTheme()
+    {
+        Console.WriteLine($"[THEME TOGGLE] ?? Toggle: {ThemeService.CurrentTheme}");
+        await ThemeService.ToggleThemeAsync();
+    }
+
+    private async void OnThemeChanged()
+    {
+        Console.WriteLine($"[THEME TOGGLE] ?? Tema deðiþti: {ThemeService.CurrentTheme}");
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        ThemeService.ThemeChanged -= OnThemeChanged;
+    }
+}
+
+<style>
+    .theme-toggle-container {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .theme-label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--gray-700);
+        transition: color 0.3s ease;
+    }
+
+    [data-theme="dark"] .theme-label {
+        color: var(--gray-600);
+    }
+
+    .theme-toggle-btn {
+        position: relative;
+        width: 60px;
+        height: 30px;
+        background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+        border: none;
+        border-radius: 30px;
+        cursor: pointer;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        padding: 0;
+        overflow: hidden;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .theme-toggle-btn:hover {
+        transform: scale(1.05);
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .theme-toggle-btn:active {
+        transform: scale(0.98);
+    }
+
+    .theme-toggle-slider {
+        position: absolute;
+        top: 3px;
+        left: 3px; /* Light mode: Sol tarafta */
+        width: 24px;
+        height: 24px;
+        background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+        border-radius: 50%;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .theme-toggle-btn.dark .theme-toggle-slider {
+        left: 33px; /* Dark mode: Sað tarafta */
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    }
+
+    .theme-toggle-btn.dark {
+        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2), 0 0 8px rgba(99, 102, 241, 0.3);
+    }
+
+    .theme-icon {
+        font-size: 14px;
+        color: #fbbf24;
+        transition: all 0.3s ease;
+        animation: rotate 0.6s ease;
+    }
+
+    [data-theme="dark"] .theme-icon {
+        color: #f9fafb;
+    }
+
+    @@keyframes rotate {
+        0% {
+            transform: rotate(0deg);
+        }
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    .theme-toggle-btn:hover .theme-icon {
+        transform: scale(1.2);
+    }
+
+    /* Ripple effect */
+    .theme-toggle-btn::before {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 30px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .theme-toggle-btn:active::before {
+        opacity: 1;
+    }
+</style>

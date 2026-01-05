@@ -1,0 +1,276 @@
+@page "/siparis-detay/{Id:int}"
+@using Uný_Proje.Web.Client.Services
+@using Uný_Proje.Web.Client.Components
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@inject SiparisServis SiparisServis
+@inject DegerlendirmeServis DegerlendirmeServis
+
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+
+<PageTitle>Sipariþ Detay</PageTitle>
+
+<div class="container mt-5">
+    @if (yukleniyor)
+    {
+        <div class="text-center my-5">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+            <p class="mt-2 text-muted">Sipariþ bilgileri yükleniyor...</p>
+        </div>
+    }
+    else if (siparis == null)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Sipariþ bulunamadý.
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="text-primary">
+                        <i class="bi bi-receipt me-2"></i>
+                        Sipariþ #@siparis.Id
+                    </h2>
+                    <button class="btn btn-outline-secondary" @onclick="GeriDon">
+                        <i class="bi bi-arrow-left me-2"></i>
+                        Sipariþlerime Dön
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- Sipariþ Özet -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Sipariþ Bilgileri
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <p class="text-muted mb-1">Sipariþ Tarihi</p>
+                                <p class="fw-bold">
+                                    <i class="bi bi-calendar3 me-2"></i>
+                                    @siparis.SiparisTarihi.ToString("dd.MM.yyyy HH:mm")
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="text-muted mb-1">Toplam Tutar</p>
+                                <p class="fw-bold text-success fs-4">
+                                    @siparis.ToplamTutar.ToString("N2") <span>&#8378;</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(siparis.TeslimatAdresi) || !string.IsNullOrEmpty(siparis.TeslimatTelefonu))
+                        {
+                            <hr />
+                            <h6 class="text-primary mb-3">
+                                <i class="bi bi-truck me-2"></i>
+                                Teslimat Bilgileri
+                            </h6>
+                            @if (!string.IsNullOrEmpty(siparis.TeslimatAdresi))
+                            {
+                                <p class="mb-2">
+                                    <i class="bi bi-geo-alt me-2 text-muted"></i>
+                                    <strong>Adres:</strong> @siparis.TeslimatAdresi
+                                </p>
+                            }
+                            @if (!string.IsNullOrEmpty(siparis.TeslimatTelefonu))
+                            {
+                                <p class="mb-2">
+                                    <i class="bi bi-telephone me-2 text-muted"></i>
+                                    <strong>Telefon:</strong> @siparis.TeslimatTelefonu
+                                </p>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <!-- Ürünler -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-cart3 me-2"></i>
+                            Sipariþ Ürünleri (@siparis.Urunler.Count)
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="list-group list-group-flush">
+                            @foreach (var urun in siparis.Urunler)
+                            {
+                                <div class="list-group-item">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-2">
+                                            @if (!string.IsNullOrEmpty(urun.ResimUrl))
+                                            {
+                                                <img src="@urun.ResimUrl" class="img-fluid rounded" alt="@urun.UrunAdi" 
+                                                     style="max-height: 80px; object-fit: contain;">
+                                            }
+                                            else
+                                            {
+                                                <div class="bg-light rounded d-flex align-items-center justify-content-center" 
+                                                     style="height: 80px;">
+                                                    <span class="text-muted"><span>&#128247;</span></span>
+                                                </div>
+                                            }
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6 class="mb-1">@urun.UrunAdi</h6>
+                                            <small class="text-muted">
+                                                Birim Fiyat: @urun.BirimFiyat.ToString("N2") ? × @urun.Adet
+                                            </small>
+                                        </div>
+                                        <div class="col-md-4 text-end">
+                                            <p class="fw-bold text-success mb-0 fs-5">
+                                                @urun.AraToplam.ToString("N2") <span>&#8378;</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sað Taraf: Durum ve Deðerlendirme -->
+            <div class="col-lg-4">
+                <!-- Sipariþ Durumu -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-box-seam me-2"></i>
+                            Sipariþ Durumu
+                        </h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="mb-3">
+                            <span class="badge bg-success fs-5 px-4 py-2">
+                                @siparis.Durum
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Satýcýyý Deðerlendir -->
+                @if ((siparis.Durum == "Teslim Edildi" || siparis.Durum == "Tamamlandý") && !degerlendirmeYapildi)
+                {
+                    <div class="card shadow-sm border-warning">
+                        <div class="card-header bg-warning text-dark">
+                            <h6 class="mb-0">
+                                <i class="bi bi-star-fill me-2"></i>
+                                Satýcýyý Deðerlendir
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="small mb-3">Sipariþiniz tamamlandý! Satýcý hakkýndaki deneyiminizi paylaþýr mýsýnýz?</p>
+                            <button class="btn btn-warning w-100" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#degerlendirmeModal">
+                                <i class="bi bi-star me-2"></i>
+                                Deðerlendirme Yap
+                            </button>
+                        </div>
+                    </div>
+                }
+                else if (degerlendirmeYapildi)
+                {
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle me-2"></i>
+                        Deðerlendirmeniz alýnmýþtýr. Teþekkürler!
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Deðerlendirme Modal -->
+<DegerlendirmeModal SiparisId="@Id" OnDegerlendirmeYapildi="@DegerlendirmeYapildiHandler" />
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private SiparisDetayDto? siparis;
+    private bool yukleniyor = true;
+    private bool degerlendirmeYapildi = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SiparisYukle();
+        await DegerlendirmeKontrol();
+    }
+
+    private async Task SiparisYukle()
+    {
+        yukleniyor = true;
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            var (detay, hata) = await SiparisServis.SiparisDetayGetir(Id, token);
+
+            if (!string.IsNullOrEmpty(hata))
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"? {hata}");
+            }
+            else
+            {
+                siparis = detay;
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Hata: {ex.Message}");
+        }
+        finally
+        {
+            yukleniyor = false;
+        }
+    }
+
+    private async Task DegerlendirmeKontrol()
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                var (yapildi, hata) = await DegerlendirmeServis.DegerlendirmeYapildiMi(Id, token);
+                degerlendirmeYapildi = yapildi;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Deðerlendirme kontrol hatasý: {ex.Message}");
+        }
+    }
+
+    private async Task DegerlendirmeYapildiHandler()
+    {
+        degerlendirmeYapildi = true;
+        await JSRuntime.InvokeVoidAsync("alert", "? Deðerlendirmeniz için teþekkür ederiz!");
+        StateHasChanged();
+    }
+
+    private void GeriDon()
+    {
+        Navigation.NavigateTo("/siparislerim");
+    }
+}

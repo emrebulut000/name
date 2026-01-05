@@ -1,0 +1,267 @@
+@page "/theme-demo"
+@inject ThemeService ThemeService
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+
+<PageTitle>Dark Mode Demo</PageTitle>
+
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            <h1 class="display-4 fw-bold mb-3">
+                <i class="bi bi-moon-stars-fill me-2"></i>
+                Dark Mode Demo
+            </h1>
+            <p class="lead text-muted">
+                Tüm component'lerin dark mode görünümünü test edin
+            </p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            <div class="card shadow-lg p-4 d-inline-block">
+                <h5 class="mb-3">Tema Kontrolü</h5>
+                <ThemeToggle showLabel="true" />
+                <div class="mt-3">
+                    <span class="badge @(ThemeService.IsDarkMode ? "bg-dark" : "bg-light text-dark")">
+                        Mevcut Tema: @(ThemeService.IsDarkMode ? "Karanlýk ??" : "Aydýnlýk ??")
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Buttons Demo -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-hand-index-thumb me-2"></i>Butonlar</h4>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-primary">Primary</button>
+                        <button class="btn btn-success">Success</button>
+                        <button class="btn btn-danger">Danger</button>
+                        <button class="btn btn-warning">Warning</button>
+                        <button class="btn btn-outline-primary">Outline Primary</button>
+                        <button class="btn btn-outline-success">Outline Success</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Demo -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-input-cursor-text me-2"></i>Form Elemanlarý</h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">E-posta</label>
+                        <input type="email" class="form-control" placeholder="ornek@email.com" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Kategori</label>
+                        <select class="form-select">
+                            <option>Elektronik</option>
+                            <option>Giyim</option>
+                            <option>Kitap</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Açýklama</label>
+                        <textarea class="form-control" rows="3" placeholder="Açýklama girin..."></textarea>
+                    </div>
+                    <button class="btn btn-primary w-100">Kaydet</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts Demo -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Uyarýlar</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success mb-2">
+                        <i class="bi bi-check-circle me-2"></i>Baþarýlý iþlem!
+                    </div>
+                    <div class="alert alert-danger mb-2">
+                        <i class="bi bi-x-circle me-2"></i>Bir hata oluþtu!
+                    </div>
+                    <div class="alert alert-warning mb-2">
+                        <i class="bi bi-exclamation-triangle me-2"></i>Dikkat edilmeli!
+                    </div>
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle me-2"></i>Bilgilendirme mesajý
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Badges Demo -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-tag me-2"></i>Etiketler (Badges)</h4>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                        <span class="badge bg-primary">Primary</span>
+                        <span class="badge bg-success">Success</span>
+                        <span class="badge bg-danger">Danger</span>
+                        <span class="badge bg-warning">Warning</span>
+                        <span class="badge bg-info">Info</span>
+                        <span class="badge bg-light text-dark">Light</span>
+                        <span class="badge bg-dark">Dark</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Demo -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-table me-2"></i>Tablo</h4>
+                </div>
+                <div class="card-body">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Ürün Adý</th>
+                                <th>Kategori</th>
+                                <th>Fiyat</th>
+                                <th>Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>iPhone 14 Pro</td>
+                                <td>Elektronik</td>
+                                <td>45.000 ?</td>
+                                <td><span class="badge bg-success">Stokta</span></td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td>MacBook Air M2</td>
+                                <td>Elektronik</td>
+                                <td>35.000 ?</td>
+                                <td><span class="badge bg-warning">Az Stok</span></td>
+                            </tr>
+                            <tr>
+                                <td>3</td>
+                                <td>AirPods Pro</td>
+                                <td>Elektronik</td>
+                                <td>8.000 ?</td>
+                                <td><span class="badge bg-danger">Tükendi</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Cards Demo -->
+    <div class="row">
+        <div class="col-12 mb-3">
+            <h3><i class="bi bi-shop me-2"></i>Ürün Kartlarý</h3>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="bg-secondary rounded mb-3" style="height: 200px; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-image text-white" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="card-title">Ürün 1</h5>
+                    <p class="card-text text-muted">Modern ve þýk tasarýmlý ürün açýklamasý burada yer alýr.</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="h5 mb-0 text-primary">1.500 ?</span>
+                        <button class="btn btn-sm btn-primary">
+                            <i class="bi bi-cart-plus me-1"></i>Sepete Ekle
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="bg-secondary rounded mb-3" style="height: 200px; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-image text-white" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="card-title">Ürün 2</h5>
+                    <p class="card-text text-muted">Kaliteli ve uygun fiyatlý ürün açýklamasý burada yer alýr.</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="h5 mb-0 text-primary">2.300 ?</span>
+                        <button class="btn btn-sm btn-primary">
+                            <i class="bi bi-cart-plus me-1"></i>Sepete Ekle
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="bg-secondary rounded mb-3" style="height: 200px; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-image text-white" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="card-title">Ürün 3</h5>
+                    <p class="card-text text-muted">Premium kalitede ürün açýklamasý burada yer alýr.</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="h5 mb-0 text-primary">3.750 ?</span>
+                        <button class="btn btn-sm btn-primary">
+                            <i class="bi bi-cart-plus me-1"></i>Sepete Ekle
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Info -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <h5 class="alert-heading">
+                    <i class="bi bi-lightbulb me-2"></i>Ýpucu
+                </h5>
+                <p class="mb-0">
+                    Sað üst köþedeki tema deðiþtirme butonunu kullanarak tüm sayfanýn nasýl deðiþtiðini görebilirsiniz.
+                    Seçtiðiniz tema tercihi LocalStorage'da saklanýr ve tarayýcýyý her açtýðýnýzda ayný temayý kullanýrsýnýz.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        ThemeService.ThemeChanged += OnThemeChanged;
+        await ThemeService.InitializeThemeAsync();
+    }
+
+    private async void OnThemeChanged()
+    {
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        ThemeService.ThemeChanged -= OnThemeChanged;
+    }
+}

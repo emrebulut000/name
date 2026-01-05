@@ -1,0 +1,737 @@
+﻿@page "/"
+@page "/kategori/{KategoriId:int}"
+@using Unı_Proje.Web.Client.Models
+@using Unı_Proje.Web.Client.Services
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@inject SepetServis SepetServis
+@inject FavoriServis FavoriServis
+
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+
+<div class="container mt-4">
+
+    @* --- 1. KARŞILAMA VE FİLTRE ALANI --- *@
+    <div class="text-center mb-5 py-5 bg-light rounded-3 shadow-sm hero-section">
+        <h1 class="display-5 fw-bold text-primary">İkinci Elin Yeni Adresi</h1>
+        <p class="lead text-muted">İhtiyacın olanı bul, fazlalıklarını sat.</p>
+
+        <div class="row justify-content-center mt-4 g-2">
+            @* ARAMA KUTUSU *@
+            <div class="col-md-6">
+                <div class="input-group input-group-lg shadow-sm">
+                    <span class="input-group-text bg-white border-end-0 text-primary">🔍</span>
+                    <input type="text" class="form-control border-start-0"
+                           placeholder="Ne arıyorsunuz? (Örn: Telefon...)"
+                           @bind="aramaMetni" @oninput="AramaYap" />
+                </div>
+            </div>
+
+            @* SIRALAMA KUTUSU (YENİ) *@
+            <div class="col-md-3">
+                <select class="form-select form-select-lg shadow-sm text-primary fw-bold" 
+                        value="@seciliSiralama"
+                        @onchange="Sirala">
+                    <option value="varsayilan">Sıralama Seçiniz...</option>
+                    <option value="fiyat_artan">Fiyat: Düşükten Yükseğe</option>
+                    <option value="fiyat_azalan">Fiyat: Yüksekten Düşüğe</option>
+                    <option value="yeni">En Yeniler</option>
+                    <option value="eski">En Eskiler</option>
+                </select>
+            </div>
+
+            @* KONUM FİLTRESİ *@
+            <div class="col-md-3">
+                <select class="form-select form-select-lg shadow-sm text-primary fw-bold" 
+                        @onchange="KonumDegisti">
+                    <option value="">Tüm Türkiye</option>
+                    @if (iller != null)
+                    {
+                        @foreach (var il in iller)
+                        {
+                            <option value="@il" selected="@(seciliKonum == il)">@il</option>
+                        }
+                    }
+                </select>
+            </div>
+        </div>
+
+        @* 🌍 MESAFE FİLTRESİ (YENİ) *@
+        <div class="row justify-content-center mt-3 g-2">
+            <div class="col-md-4">
+                <div class="card shadow-sm border-primary">
+                    <div class="card-body py-2">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="fw-bold text-primary">
+                                <i class="bi bi-geo-alt-fill me-2"></i>
+                                Yakınımdaki İlanlar
+                            </span>
+                            <button class="btn btn-sm btn-outline-primary" 
+                                    @onclick="KonumuAl"
+                                    disabled="@konumAliniyor">
+                                @if (konumAliniyor)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                }
+                                else if (kullaniciKonumu != null)
+                                {
+                                    <i class="bi bi-check-circle-fill me-1"></i>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-crosshair me-1"></i>
+                                }
+                                Konumu Al
+                            </button>
+                        </div>
+                        
+                        @if (kullaniciKonumu != null)
+                        {
+                            <div class="mt-2">
+                                <select class="form-select form-select-sm" 
+                                        @onchange="MesafeFiltresiDegisti"
+                                        value="@seciliMesafe">
+                                    <option value="0">Tüm Mesafeler</option>
+                                    <option value="5">5 km içinde</option>
+                                    <option value="10">10 km içinde</option>
+                                    <option value="20">20 km içinde</option>
+                                    <option value="50">50 km içinde</option>
+                                    <option value="100">100 km içinde</option>
+                                    <option value="200">200 km içinde</option>
+                                </select>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* --- 2. KATEGRİ BAŞLIĞI --- *@
+    @if (KategoriId.HasValue && seciliKategoriAd != null)
+    {
+        <div class="mb-3 d-flex align-items-center">
+            <a href="/" class="btn btn-outline-secondary btn-sm me-2">
+                <i class="bi bi-x-lg"></i> Filtreyi Temizle
+            </a>
+            <h4 class="text-primary m-0">"@seciliKategoriAd" Kategorisindeki Ürünler</h4>
+        </div>
+    }
+
+    @* --- 3. DURUM KONTROLÜ --- *@
+    @if (yukleniyor)
+    {
+        <div class="text-center my-5">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+            <p class="mt-2 text-muted fs-5">Vitrin yükleniyor...</p>
+        </div>
+    }
+    else if (!filtreliUrunler.Any())
+    {
+        <div class="text-center my-5">
+            <div class="fs-1">😔</div>
+            <p class="fs-4 text-muted mt-3">Aradığınız kriterlere uygun ürün bulunamadı.</p>
+        </div>
+    }
+    else
+    {
+        @* --- 4. ÜRÜN VİTRİNİ --- *@
+        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-2 g-md-4">
+            @foreach (var urun in filtreliUrunler)
+            {
+                <div class="col">
+                    <div class="card h-100 shadow-sm border-0 hover-card">
+
+                        @* Resim *@
+                        <div class="position-relative overflow-hidden card-img-wrapper" @onclick="() => DetayaGit(urun.Id)" style="cursor: pointer;">
+                            @if (!string.IsNullOrEmpty(urun.ResimUrl))
+                            {
+                                <img src="@urun.ResimUrl" class="card-img-top" alt="@urun.Ad">
+                            }
+                            else
+                            {
+                                <div class="d-flex align-items-center justify-content-center h-100 bg-secondary text-white">
+                                    <div class="text-center">
+                                        <span class="display-6">📷</span>
+                                        <div class="small">Resim Yok</div>
+                                    </div>
+                                </div>
+                            }
+                            @if (urun.Kategori != null)
+                            {
+                                <span class="position-absolute top-0 end-0 badge bg-primary m-2 shadow-sm">@urun.Kategori.Ad</span>
+                            }
+                            
+                            @* Favori butonu *@
+                            <button class="position-absolute top-0 start-0 btn btn-sm m-2 bg-white border-0 shadow-sm favori-btn"
+                                    @onclick="() => FavoriToggle(urun.Id)" 
+                                    @onclick:stopPropagation="true"
+                                    title="@(FavoriMi(urun.Id) ? "Favorilerden Çıkar" : "Favorilere Ekle")">
+                                @if (FavoriMi(urun.Id))
+                                {
+                                    <i class="bi bi-heart-fill text-danger fs-5"></i>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-heart text-secondary fs-5"></i>
+                                }
+                            </button>
+                        </div>
+
+                        @* Bilgi *@
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title text-truncate fw-bold text-dark" title="@urun.Ad" @onclick="() => DetayaGit(urun.Id)" style="cursor: pointer;">@urun.Ad</h5>
+
+                            @if (!string.IsNullOrEmpty(urun.Konum))
+                            {
+                                <p class="text-muted small mb-2">
+                                    <i class="bi bi-geo-alt-fill"></i> @urun.Konum
+                                </p>
+                            }
+
+                            <div class="mt-auto">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="card-text fw-bold text-success fs-5">@urun.Fiyat.ToString("N2") <span>&#8378;</span></span>
+                                </div>
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-sm btn-success" @onclick="() => SepeteEkle(urun.Id)" @onclick:stopPropagation="true">
+                                        <i class="bi bi-cart-plus me-1"></i> Sepete Ekle
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => DetayaGit(urun.Id)" @onclick:stopPropagation="true">
+                                        <i class="bi bi-eye me-1"></i> Detayları Gör
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @* --- 5. SAYFALAMA KONTROLÜ --- *@
+        @if (sayfaBilgisi != null && sayfaBilgisi.ToplamSayfa > 1)
+        {
+            <div class="d-flex justify-content-center align-items-center mt-5 mb-4">
+                <nav aria-label="Sayfa navigasyonu">
+                    <ul class="pagination pagination-lg mb-0">
+                        @* Önceki Sayfa *@
+                        <li class="page-item @(mevcutSayfa == 1 ? "disabled" : "")">
+                            <button class="page-link" @onclick="OncekiSayfa" disabled="@(mevcutSayfa == 1)">
+                                <i class="bi bi-chevron-left"></i> Önceki
+                            </button>
+                        </li>
+
+                        @* Sayfa Numaraları *@
+                        @for (int i = Math.Max(1, mevcutSayfa - 2); i <= Math.Min(sayfaBilgisi.ToplamSayfa, mevcutSayfa + 2); i++)
+                        {
+                            var sayfaNo = i;
+                            <li class="page-item @(sayfaNo == mevcutSayfa ? "active" : "")">
+                                <button class="page-link" @onclick="() => SayfaDegistir(sayfaNo)">
+                                    @sayfaNo
+                                </button>
+                            </li>
+                        }
+
+                        @* Sonraki Sayfa *@
+                        <li class="page-item @(mevcutSayfa == sayfaBilgisi.ToplamSayfa ? "disabled" : "")">
+                            <button class="page-link" @onclick="SonrakiSayfa" disabled="@(mevcutSayfa == sayfaBilgisi.ToplamSayfa)">
+                                Sonraki <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+
+            @* Sayfa Bilgisi *@
+            <div class="text-center text-muted mb-4">
+                <small>
+                    <i class="bi bi-info-circle"></i>
+                    Toplam <strong>@sayfaBilgisi.ToplamUrun</strong> ürün bulundu.
+                    Sayfa <strong>@mevcutSayfa</strong> / <strong>@sayfaBilgisi.ToplamSayfa</strong>
+                    (Her sayfada @sayfaBoyutu ürün gösteriliyor)
+                </small>
+            </div>
+        }
+    }
+</div>
+
+@code {
+[Parameter] public int? KategoriId { get; set; }
+
+private List<UrunViewModel> tumUrunler = new();
+private List<UrunViewModel> filtreliUrunler = new();
+private HashSet<int> favoriUrunIdler = new(); // Favori ürün ID'lerini tutacak
+private string aramaMetni = "";
+private string seciliSiralama = "varsayilan"; // Seçilen sıralama türü
+private bool yukleniyor = true;
+private string? seciliKategoriAd;
+private string seciliKonum = ""; // Yeni: konum filtresi
+private List<string> iller = new List<string>(); // İl listesi
+
+// 🌍 Mesafe filtresi için yeni değişkenler
+private bool konumAliniyor = false;
+private (double Latitude, double Longitude)? kullaniciKonumu = null;
+private int seciliMesafe = 0; // 0 = Tüm mesafeler
+
+// 📄 Sayfalama değişkenleri
+private int mevcutSayfa = 1;
+private int sayfaBoyutu = 8; // Backend ile uyumlu hale getirildi
+private SayfaBilgisi? sayfaBilgisi;
+
+protected override async Task OnParametersSetAsync()
+{
+    yukleniyor = true;
+    try
+    {
+        // İlleri yükle (sadece ilk seferde)
+        if (!iller.Any())
+        {
+            try
+            {
+                iller = await Http.GetFromJsonAsync<List<string>>("https://localhost:7130/api/konum/iller") ?? new List<string>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"İl yükleme hatası: {ex.Message}");
+            }
+        }
+
+        // 🔄 localStorage'dan sıralama tercihini yükle
+        try
+        {
+            var kaydedilmisSiralama = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "siralamaSecimi");
+            if (!string.IsNullOrEmpty(kaydedilmisSiralama))
+            {
+                seciliSiralama = kaydedilmisSiralama;
+                Console.WriteLine($"[SIRALama] localStorage'dan yüklendi: {seciliSiralama}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SIRALAMA] localStorage okuma hatası: {ex.Message}");
+        }
+
+        // API'den ürünleri çek - Sayfalama + Sıralama ile
+        var url = $"https://localhost:7130/api/urunler?sayfa={mevcutSayfa}&sayfaBoyutu={sayfaBoyutu}";
+        
+        // Sıralama parametresi ekle
+        if (!string.IsNullOrWhiteSpace(seciliSiralama) && seciliSiralama != "varsayilan")
+        {
+            url += $"&siralama={seciliSiralama}";
+        }
+        
+        // Konum filtresi ekle
+        if (!string.IsNullOrWhiteSpace(seciliKonum))
+        {
+            url += $"&konum={System.Net.WebUtility.UrlEncode(seciliKonum)}";
+        }
+
+        // 🌍 Mesafe filtresi ekle
+        if (kullaniciKonumu.HasValue && seciliMesafe > 0)
+        {
+            url += $"&kullaniciLatitude={kullaniciKonumu.Value.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+            url += $"&kullaniciLongitude={kullaniciKonumu.Value.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+            url += $"&maxMesafe={seciliMesafe}";
+            Console.WriteLine($"[MESAFE FİLTRE] {seciliMesafe}km mesafe filtresi uygulanıyor");
+        }
+
+        Console.WriteLine($"[VİTRİN] API URL: {url}");
+        var response = await Http.GetAsync(url);
+        Console.WriteLine($"[VİTRİN] API Response: {response.StatusCode}");
+        
+        if (response.IsSuccessStatusCode)
+        {
+            var responseBody = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"[VİTRİN] Response Body: {responseBody.Substring(0, Math.Min(200, responseBody.Length))}...");
+            
+            var sayfaliResponse = await response.Content.ReadFromJsonAsync<SayfaliUrunResponse>();
+            if (sayfaliResponse != null)
+            {
+                tumUrunler = sayfaliResponse.Urunler ?? new();
+                sayfaBilgisi = sayfaliResponse.SayfaBilgisi;
+                Console.WriteLine($"[VİTRİN] ✅ {tumUrunler.Count} ürün yüklendi. Sayfa {sayfaBilgisi?.MevcutSayfa}/{sayfaBilgisi?.ToplamSayfa}");
+                Console.WriteLine($"[VİTRİN] Toplam ürün: {sayfaBilgisi?.ToplamUrun}");
+            }
+            else
+            {
+                Console.WriteLine($"[VİTRİN] ❌ sayfaliResponse NULL!");
+            }
+        }
+        else
+        {
+            Console.WriteLine($"[VİTRİN] ❌ API hatası: {response.StatusCode}");
+            var errorBody = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"[VİTRİN] Error Body: {errorBody}");
+            tumUrunler = new();
+            sayfaBilgisi = null;
+        }
+
+        // Kategori Filtresi Uygula
+        if (KategoriId.HasValue)
+        {
+            filtreliUrunler = tumUrunler.Where(u => u.Kategori?.Id == KategoriId.Value).ToList();
+            seciliKategoriAd = filtreliUrunler.FirstOrDefault()?.Kategori?.Ad;
+        }
+        else
+        {
+            filtreliUrunler = tumUrunler;
+        }
+
+        // Mevcut Arama ve Sıralamayı da tekrar uygula (filtre kaybolmasın)
+        FiltreleriUygula();
+            
+        // Favori ürünleri yükle
+        await FavorileriYukle();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(ex.Message);
+    }
+    finally
+    {
+        yukleniyor = false;
+    }
+}
+
+private async Task FavorileriYukle()
+{
+    try
+    {
+        var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            
+        if (!string.IsNullOrEmpty(token))
+        {
+            var (favoriler, hata) = await FavoriServis.FavorileriGetir(token);
+                
+            if (string.IsNullOrEmpty(hata) && favoriler != null)
+            {
+                favoriUrunIdler = favoriler.Select(f => f.UrunId).ToHashSet();
+            }
+            else
+            {
+                // Hata varsa veya favoriler null ise boş liste kullan
+                favoriUrunIdler = new HashSet<int>();
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Favori yükleme hatası: {ex.Message}");
+        // Hata olsa bile boş liste kullan, sayfa çalışmaya devam etsin
+        favoriUrunIdler = new HashSet<int>();
+    }
+}
+
+private bool FavoriMi(int urunId) => favoriUrunIdler.Contains(urunId);
+
+    // Client-side filtreleme (Sadece arama için)
+    private void FiltreleriUygula()
+    {
+        // 1. Kategori Filtresi (Varsa)
+        var geciciListe = KategoriId.HasValue
+            ? tumUrunler.Where(u => u.Kategori?.Id == KategoriId.Value)
+            : tumUrunler;
+
+        // 2. Arama Metni (Client-side)
+        if (!string.IsNullOrWhiteSpace(aramaMetni))
+        {
+            geciciListe = geciciListe.Where(u => u.Ad.Contains(aramaMetni, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Backend zaten sıralama yaptı, biz sadece listeyi kopyalıyoruz
+        filtreliUrunler = geciciListe.ToList();
+        
+        Console.WriteLine($"[FİLTRE] {filtreliUrunler.Count} ürün gösteriliyor (Arama: '{aramaMetni}')");
+    }
+
+    private void AramaYap(ChangeEventArgs e)
+    {
+        aramaMetni = e.Value?.ToString() ?? "";
+        FiltreleriUygula();
+    }
+
+    private async Task Sirala(ChangeEventArgs e)
+    {
+        seciliSiralama = e.Value?.ToString() ?? "varsayilan";
+        
+        // 💾 Sıralama tercihini localStorage'a kaydet
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "siralamaSecimi", seciliSiralama);
+            Console.WriteLine($"[SIRALAMA] localStorage'a kaydedildi: {seciliSiralama}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SIRALAMA] localStorage kaydetme hatası: {ex.Message}");
+        }
+        
+        // ⚡ Backend'den yeniden veri çek (sıralama ile)
+        mevcutSayfa = 1; // İlk sayfaya dön
+        await OnParametersSetAsync();
+    }
+
+    // 🔗 SEO-friendly URL ile detaya git
+    private void DetayaGit(int id)
+    {
+        // Önce slug'ı bul
+        var urun = filtreliUrunler.FirstOrDefault(u => u.Id == id);
+        
+        Console.WriteLine($"[DETAY GİT] Ürün ID: {id}");
+        Console.WriteLine($"[DETAY GİT] Ürün bulundu: {urun != null}");
+        Console.WriteLine($"[DETAY GİT] Ürün Slug: '{urun?.Slug ?? "NULL"}'");
+        
+        if (urun != null && !string.IsNullOrEmpty(urun.Slug))
+        {
+            Console.WriteLine($"[DETAY GİT] ✅ Slug URL kullanılıyor: /urun/{urun.Slug}");
+            Navigation.NavigateTo($"/urun/{urun.Slug}");
+        }
+        else
+        {
+            Console.WriteLine($"[DETAY GİT] ⚠️ Fallback ID URL kullanılıyor: /urun-detay/{id}");
+            Navigation.NavigateTo($"/urun-detay/{id}");
+        }
+    }
+
+    private async Task SepeteEkle(int urunId)
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            var sonuc = await SepetServis.SepeteEkle(urunId, token);
+            
+            if (sonuc.BasariliMi)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"✅ {sonuc.Mesaj}");
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"❌ {sonuc.Mesaj}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Hata: {ex.Message}");
+        }
+    }
+
+    private async Task FavoriToggle(int urunId)
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            // Eğer zaten favorilerdeyse çıkar, değilse ekle
+            if (FavoriMi(urunId))
+            {
+                var sonuc = await FavoriServis.FavorilerdenCikar(urunId, token);
+                
+                if (sonuc.BasariliMi)
+                {
+                    favoriUrunIdler.Remove(urunId); // Local listeden çıkar
+                    await JSRuntime.InvokeVoidAsync("alert", $"✅ {sonuc.Mesaj}");
+                }
+                else
+                {
+                    await JSRuntime.InvokeVoidAsync("alert", $"❌ {sonuc.Mesaj}");
+                }
+            }
+            else
+            {
+                var sonuc = await FavoriServis.FavorilereEkle(urunId, token);
+                
+                if (sonuc.BasariliMi)
+                {
+                    favoriUrunIdler.Add(urunId); // Local listeye ekle
+                    await JSRuntime.InvokeVoidAsync("alert", $"✅ {sonuc.Mesaj}");
+                }
+                else
+                {
+                    await JSRuntime.InvokeVoidAsync("alert", $"❌ {sonuc.Mesaj}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Hata: {ex.Message}");
+        }
+    }
+
+    // Konum dropdown değiştiğinde çalışır
+    private async Task KonumDegisti(ChangeEventArgs e)
+    {
+        seciliKonum = e.Value?.ToString() ?? "";
+        mevcutSayfa = 1; // Konum değişince ilk sayfaya dön
+        // API çağrısını ve filtreleri yeniden uygula
+        await OnParametersSetAsync();
+    }
+
+    // 🌍 Kullanıcının konumunu al (JavaScript Geolocation API)
+    private async Task KonumuAl()
+    {
+        konumAliniyor = true;
+        
+        try
+        {
+            Console.WriteLine("[KONUM] Kullanıcı konumu alınmaya çalışılıyor...");
+            var konum = await JSRuntime.InvokeAsync<KonumBilgisi>("konumuAl");
+            
+            if (konum != null && konum.Latitude != 0 && konum.Longitude != 0)
+            {
+                kullaniciKonumu = (konum.Latitude, konum.Longitude);
+                Console.WriteLine($"[KONUM] ✅ Kullanıcı konumu alındı: Lat={kullaniciKonumu.Value.Latitude}, Lon={kullaniciKonumu.Value.Longitude}");
+                await JSRuntime.InvokeVoidAsync("alert", $"✅ Konumunuz başarıyla alındı!\nEnlem: {kullaniciKonumu.Value.Latitude:F4}\nBoylam: {kullaniciKonumu.Value.Longitude:F4}");
+            }
+            else
+            {
+                Console.WriteLine("[KONUM] ❌ Konum bilgisi geçersiz veya null");
+                await JSRuntime.InvokeVoidAsync("alert", "❌ Konum alınamadı. Lütfen tarayıcınızda konum izni verin.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[KONUM] ❌ Exception: {ex.Message}");
+            Console.WriteLine($"[KONUM] Stack: {ex.StackTrace}");
+            await JSRuntime.InvokeVoidAsync("alert", $"❌ Konum alma hatası: {ex.Message}");
+        }
+        finally
+        {
+            konumAliniyor = false;
+        }
+    }
+
+    // Mesafe filtresi değiştiğinde
+    private async Task MesafeFiltresiDegisti(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int mesafe))
+        {
+            seciliMesafe = mesafe;
+            Console.WriteLine($"[MESAFE FİLTRE] Mesafe değişti: {seciliMesafe}km");
+            Console.WriteLine($"[MESAFE FİLTRE] Kullanıcı konumu: {kullaniciKonumu?.Latitude}, {kullaniciKonumu?.Longitude}");
+            
+            if (!kullaniciKonumu.HasValue)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "⚠️ Önce 'Konumu Al' butonuna tıklayarak konumunuzu paylaşın!");
+                return;
+            }
+            
+            mevcutSayfa = 1; // İlk sayfaya dön
+            await OnParametersSetAsync();
+        }
+    }
+
+    // Konum bilgisi için helper class
+    private class KonumBilgisi
+    {
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+    }
+
+    // 📄 Sayfalama metodları
+    private async Task SayfaDegistir(int yeniSayfa)
+    {
+        if (yeniSayfa < 1 || (sayfaBilgisi != null && yeniSayfa > sayfaBilgisi.ToplamSayfa))
+            return;
+
+        mevcutSayfa = yeniSayfa;
+        await OnParametersSetAsync();
+        
+        // Sayfayı en üste kaydır
+        await JSRuntime.InvokeVoidAsync("window.scrollTo", new { top = 0, behavior = "smooth" });
+    }
+
+    private async Task OncekiSayfa()
+    {
+        if (mevcutSayfa > 1)
+        {
+            await SayfaDegistir(mevcutSayfa - 1);
+        }
+    }
+
+    private async Task SonrakiSayfa()
+    {
+        if (sayfaBilgisi != null && mevcutSayfa < sayfaBilgisi.ToplamSayfa)
+        {
+            await SayfaDegistir(mevcutSayfa + 1);
+        }
+    }
+}
+
+<style>
+    .hover-card {
+        transition: all 0.3s ease;
+        background-color: white;
+    }
+
+        .hover-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15) !important;
+        }
+
+    /* Dark mode için card arka planı */
+    [data-theme="dark"] .hover-card {
+        background-color: #1e293b;
+        border-color: #374151 !important;
+    }
+
+    .card-img-wrapper {
+        height: 220px;
+        background-color: #f8f9fa;
+    }
+
+    /* Dark mode için resim wrapper arka planı */
+    [data-theme="dark"] .card-img-wrapper {
+        background-color: #0f172a;
+    }
+
+    .card-img-top {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 10px;
+    }
+
+    .hero-section {
+        background: linear-gradient(to bottom right, #f8f9fa, #e9ecef);
+    }
+
+    /* Dark mode için hero section */
+    [data-theme="dark"] .hero-section {
+        background: linear-gradient(to bottom right, #1e293b, #0f172a) !important;
+    }
+
+    .favori-btn {
+        transition: all 0.2s ease;
+    }
+
+        .favori-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .favori-btn i {
+            transition: all 0.2s ease;
+        }
+
+        .favori-btn:hover i {
+            transform: scale(1.2);
+        }
+
+    /* Dark mode için favori butonu */
+    [data-theme="dark"] .favori-btn {
+        background-color: #1e293b !important;
+        color: var(--gray-800);
+    }
+</style>

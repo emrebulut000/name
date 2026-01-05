@@ -1,0 +1,162 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    
+    <!-- 🌙 Tema Yönetimi - TEK KAYNAK PRENSİBİ (localStorage = Master) -->
+    <script>
+        (function() {
+            'use strict';
+            
+            // 🎯 localStorage = TEK DOĞRU KAYNAK
+            var THEME_KEY = 'theme';
+            var DEFAULT_THEME = 'light';
+            var isUpdating = false;
+            
+            // 🔒 localStorage'dan güvenli okuma
+            function getThemeFromStorage() {
+                try {
+                    var theme = localStorage.getItem(THEME_KEY);
+                    return theme === 'dark' || theme === 'light' ? theme : DEFAULT_THEME;
+                } catch (e) {
+                    console.error('[THEME] localStorage okuma hatası:', e);
+                    return DEFAULT_THEME;
+                }
+            }
+            
+            // 💾 localStorage'a güvenli yazma
+            function saveThemeToStorage(theme) {
+                try {
+                    localStorage.setItem(THEME_KEY, theme);
+                    console.log('[THEME] localStorage güncellendi:', theme);
+                    return true;
+                } catch (e) {
+                    console.error('[THEME] localStorage yazma hatası:', e);
+                    return false;
+                }
+            }
+            
+            // 🎨 Temayı HTML'e uygula
+            function applyTheme(theme, source) {
+                if (isUpdating) return;
+                
+                isUpdating = true;
+                var currentTheme = document.documentElement.getAttribute('data-theme');
+                
+                if (currentTheme !== theme) {
+                    document.documentElement.setAttribute('data-theme', theme);
+                    console.log('[THEME] ✅ Tema uygulandı:', theme, '(kaynak:', source + ')');
+                } else {
+                    console.log('[THEME] ℹ️ Tema zaten doğru:', theme);
+                }
+                
+                setTimeout(function() { isUpdating = false; }, 50);
+            }
+            
+            // 🚀 İlk yükleme - SENKRON
+            var initialTheme = getThemeFromStorage();
+            if (!localStorage.getItem(THEME_KEY)) {
+                saveThemeToStorage(initialTheme);
+            }
+            applyTheme(initialTheme, 'initial');
+            
+            // 🔄 Diğer sekmelerden değişiklikler
+            window.addEventListener('storage', function(e) {
+                if (e.key === THEME_KEY && e.newValue) {
+                    var newTheme = e.newValue === 'dark' ? 'dark' : 'light';
+                    applyTheme(newTheme, 'storage-event');
+                }
+            });
+            
+            // 🔙 İleri/Geri butonları
+            window.addEventListener('popstate', function() {
+                var theme = getThemeFromStorage();
+                applyTheme(theme, 'popstate');
+            });
+            
+            // 🔄 Blazor navigasyon
+            document.addEventListener('enhancedload', function() {
+                var theme = getThemeFromStorage();
+                applyTheme(theme, 'enhancedload');
+            });
+            
+            // 🛡️ MutationObserver - Yanlış değişiklikleri düzelt
+            var observer = new MutationObserver(function(mutations) {
+                if (isUpdating) return;
+                
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+                        var currentTheme = document.documentElement.getAttribute('data-theme');
+                        var correctTheme = getThemeFromStorage();
+                        
+                        if (currentTheme !== correctTheme) {
+                            console.warn('[THEME] ⚠️ Tema tutarsızlığı tespit edildi!');
+                            console.warn('[THEME]    HTML:', currentTheme, '| localStorage:', correctTheme);
+                            applyTheme(correctTheme, 'mutation-observer');
+                        }
+                    }
+                });
+            });
+            
+            observer.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ['data-theme']
+            });
+            
+            // 🌐 Global helper (C# tarafından kullanılabilir)
+            window.themeManager = {
+                get: getThemeFromStorage,
+                set: function(theme) {
+                    if (theme === 'dark' || theme === 'light') {
+                        saveThemeToStorage(theme);
+                        applyTheme(theme, 'c#-call');
+                        return true;
+                    }
+                    return false;
+                }
+            };
+            
+            console.log('[THEME] 🎯 Tema sistemi başlatıldı. Mevcut tema:', initialTheme);
+        })();
+    </script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="css/product-card.css" />
+    <link rel="stylesheet" href="css/homepage.css" />
+    <link rel="stylesheet" href="Unı_Proje.Web.styles.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <HeadOutlet />
+</head>
+
+<body>
+
+    
+<Routes />
+
+    <div id="blazor-error-ui" style="display: none;">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <script src="_framework/blazor.web.js"></script>
+    <!-- Bootstrap Bundle (includes Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- 🌍 Konum Servisi -->
+    <script src="js/location.js"></script>
+</body>
+
+</html>

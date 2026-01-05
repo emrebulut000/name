@@ -1,0 +1,374 @@
+@page "/satici-profil/{SaticiId:int}"
+@using Microsoft.AspNetCore.Components
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+
+<PageTitle>@(saticiProfil?.SaticiAdi ?? "Satýcý Profili")</PageTitle>
+
+<div class="container mt-4">
+    @if (yukleniyor)
+    {
+        <div class="text-center my-5">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+            <p class="mt-2 text-muted">Satýcý profili yükleniyor...</p>
+        </div>
+    }
+    else if (saticiProfil == null)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Satýcý bulunamadý.
+        </div>
+    }
+    else
+    {
+        <!-- Üst Kýsým: Satýcý Bilgileri -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <!-- Sol: Profil Resmi -->
+                    <div class="col-md-3 text-center">
+                        @if (!string.IsNullOrEmpty(saticiProfil.ProfilResmi))
+                        {
+                            <img src="@saticiProfil.ProfilResmi" 
+                                 class="rounded-circle shadow" 
+                                 style="width: 150px; height: 150px; object-fit: cover;" 
+                                 alt="@saticiProfil.SaticiAdi">
+                        }
+                        else
+                        {
+                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto shadow" 
+                                 style="width: 150px; height: 150px; font-size: 3rem;">
+                                @saticiProfil.SaticiAdi.Substring(0, 1).ToUpper()
+                            </div>
+                        }
+                        <h4 class="mt-3 mb-1">@saticiProfil.SaticiAdi</h4>
+                        <small class="text-muted">
+                            <i class="bi bi-calendar-check me-1"></i>
+                            Üye: @saticiProfil.UyelikTarihi.ToString("MMMM yyyy")
+                        </small>
+                    </div>
+
+                    <!-- Orta: Puan Bilgisi -->
+                    <div class="col-md-5">
+                        <div class="border-start ps-4">
+                            <h5 class="text-primary mb-3">
+                                <i class="bi bi-star-fill me-2"></i>
+                                Satýcý Puaný
+                            </h5>
+                            
+                            @if (saticiProfil.ToplamDegerlendirme > 0)
+                            {
+                                <div class="d-flex align-items-center mb-3">
+                                    <span class="display-4 fw-bold text-warning me-3">
+                                        @saticiProfil.OrtalamaPuan?.ToString("0.0")
+                                    </span>
+                                    <div>
+                                        <div class="text-warning fs-4">
+                                            @for (int i = 1; i <= 5; i++)
+                                            {
+                                                @if (i <= (saticiProfil.OrtalamaPuan ?? 0))
+                                                {
+                                                    <span>@((MarkupString)"&#9733;")</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-secondary">@((MarkupString)"&#9734;")</span>
+                                                }
+                                            }
+                                        </div>
+                                        <small class="text-muted">@saticiProfil.ToplamDegerlendirme deðerlendirme</small>
+                                    </div>
+                                </div>
+
+                                <!-- Puan Daðýlýmý -->
+                                <div class="mb-2">
+                                    @for (int star = 5; star >= 1; star--)
+                                    {
+                                        int yildiz = star;
+                                        int adet = yildiz switch
+                                        {
+                                            5 => saticiProfil.Puan5Yildiz,
+                                            4 => saticiProfil.Puan4Yildiz,
+                                            3 => saticiProfil.Puan3Yildiz,
+                                            2 => saticiProfil.Puan2Yildiz,
+                                            1 => saticiProfil.Puan1Yildiz,
+                                            _ => 0
+                                        };
+                                        double yuzde = saticiProfil.ToplamDegerlendirme > 0 
+                                            ? (adet * 100.0 / saticiProfil.ToplamDegerlendirme) 
+                                            : 0;
+
+                                        <div class="d-flex align-items-center mb-1">
+                                            <span class="me-2" style="width: 60px;">@yildiz @((MarkupString)"&#9733;")</span>
+                                            <div class="progress flex-grow-1 me-2" style="height: 8px;">
+                                                <div class="progress-bar bg-warning" 
+                                                     style="width: @(yuzde)%"></div>
+                                            </div>
+                                            <span class="text-muted" style="width: 40px;">@adet</span>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="text-muted">Henüz deðerlendirme yapýlmamýþ.</p>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Sað: Ýstatistikler -->
+                    <div class="col-md-4">
+                        <div class="border-start ps-4">
+                            <h5 class="text-primary mb-3">
+                                <i class="bi bi-graph-up me-2"></i>
+                                Ýstatistikler
+                            </h5>
+                            
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Toplam Ürün:</span>
+                                    <span class="fw-bold">@saticiProfil.ToplamUrunSayisi</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Deðerlendirme:</span>
+                                    <span class="fw-bold">@saticiProfil.ToplamDegerlendirme</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">Ortalama Puan:</span>
+                                    <span class="fw-bold text-warning">
+                                        @(saticiProfil.OrtalamaPuan?.ToString("0.0") ?? "N/A")
+                                    </span>
+                                </div>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(saticiProfil.Bio))
+                            {
+                                <hr />
+                                <h6 class="text-muted mb-2">Hakkýnda:</h6>
+                                <p class="small">@saticiProfil.Bio</p>
+                            }
+
+                            @if (!string.IsNullOrEmpty(saticiProfil.Telefon))
+                            {
+                                <hr />
+                                <p class="small mb-0">
+                                    <i class="bi bi-telephone me-2"></i>
+                                    @saticiProfil.Telefon
+                                </p>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs: Ürünler ve Deðerlendirmeler -->
+        <ul class="nav nav-tabs mb-4" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link @(aktifTab == "urunler" ? "active" : "")" 
+                        @onclick='() => aktifTab = "urunler"'>
+                    <i class="bi bi-box-seam me-2"></i>
+                    Ürünler (@saticiProfil.Urunler.Count)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link @(aktifTab == "degerlendirmeler" ? "active" : "")" 
+                        @onclick='() => aktifTab = "degerlendirmeler"'>
+                    <i class="bi bi-star-fill me-2"></i>
+                    Deðerlendirmeler (@saticiProfil.Degerlendirmeler.Count)
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Ýçerikleri -->
+        @if (aktifTab == "urunler")
+        {
+            <!-- Ürünler Listesi -->
+            @if (saticiProfil.Urunler.Any())
+            {
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+                    @foreach (var urun in saticiProfil.Urunler)
+                    {
+                        <div class="col">
+                            <div class="card h-100 shadow-sm hover-shadow">
+                                @if (!string.IsNullOrEmpty(urun.ResimUrl))
+                                {
+                                    <img src="@urun.ResimUrl" class="card-img-top" alt="@urun.Ad" 
+                                         style="height: 200px; object-fit: cover;">
+                                }
+                                else
+                                {
+                                    <div class="bg-light d-flex align-items-center justify-content-center" 
+                                         style="height: 200px;">
+                                        <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                                    </div>
+                                }
+                                <div class="card-body">
+                                    <span class="badge bg-info mb-2">@urun.KategoriAdi</span>
+                                    <h6 class="card-title">@urun.Ad</h6>
+                                    <p class="text-success fw-bold mb-2">@urun.Fiyat.ToString("N2") <span>&#8378;</span></p>
+                                    <small class="text-muted">
+                                        <i class="bi bi-box-seam me-1"></i>
+                                        Stok: @urun.StokMiktari adet
+                                    </small>
+                                </div>
+                                <div class="card-footer bg-white">
+                                    <a href="/urun-detay/@urun.Id" class="btn btn-sm btn-primary w-100">
+                                        <i class="bi bi-eye me-2"></i>
+                                        Detaylarý Gör
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Bu satýcýnýn henüz aktif ürünü bulunmuyor.
+                </div>
+            }
+        }
+        else
+        {
+            <!-- Deðerlendirmeler Listesi -->
+            @if (saticiProfil.Degerlendirmeler.Any())
+            {
+                <div class="row">
+                    <div class="col-lg-10 mx-auto">
+                        @foreach (var deg in saticiProfil.Degerlendirmeler)
+                        {
+                            <div class="card mb-3 shadow-sm">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <h6 class="mb-1">@deg.DegerlendirenAdi</h6>
+                                            <div class="text-warning">
+                                                @for (int i = 1; i <= 5; i++)
+                                                {
+                                                    @if (i <= deg.Puan)
+                                                    {
+                                                        <span>@((MarkupString)"&#9733;")</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-secondary">@((MarkupString)"&#9734;")</span>
+                                                    }
+                                                }
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">@deg.Tarih.ToString("dd.MM.yyyy")</small>
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(deg.Yorum))
+                                    {
+                                        <p class="mb-0 text-muted">@deg.Yorum</p>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Bu satýcý henüz deðerlendirilmemiþ.
+                </div>
+            }
+        }
+    }
+</div>
+
+<style>
+    .hover-shadow {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .hover-shadow:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    }
+
+    .nav-link {
+        cursor: pointer;
+    }
+</style>
+
+@code {
+    [Parameter] public int SaticiId { get; set; }
+
+    private SaticiProfilDto? saticiProfil;
+    private bool yukleniyor = true;
+    private string aktifTab = "urunler";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ProfilYukle();
+    }
+
+    private async Task ProfilYukle()
+    {
+        yukleniyor = true;
+        try
+        {
+            saticiProfil = await Http.GetFromJsonAsync<SaticiProfilDto>(
+                $"https://localhost:7130/api/saticiprofil/{SaticiId}"
+            );
+
+            Console.WriteLine($"[SATICI PROFIL] Yüklendi: {saticiProfil?.SaticiAdi}, Ürün: {saticiProfil?.Urunler.Count}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SATICI PROFIL HATA] {ex.Message}");
+        }
+        finally
+        {
+            yukleniyor = false;
+        }
+    }
+
+    public class SaticiProfilDto
+    {
+        public int SaticiId { get; set; }
+        public string SaticiAdi { get; set; } = "";
+        public string? ProfilResmi { get; set; }
+        public string? Bio { get; set; }
+        public string? Telefon { get; set; }
+        public DateTime UyelikTarihi { get; set; }
+        public decimal? OrtalamaPuan { get; set; }
+        public int ToplamDegerlendirme { get; set; }
+        public int Puan5Yildiz { get; set; }
+        public int Puan4Yildiz { get; set; }
+        public int Puan3Yildiz { get; set; }
+        public int Puan2Yildiz { get; set; }
+        public int Puan1Yildiz { get; set; }
+        public int ToplamUrunSayisi { get; set; }
+        public List<SaticiUrunDto> Urunler { get; set; } = new();
+        public List<SaticiDegerlendirmeDto> Degerlendirmeler { get; set; } = new();
+    }
+
+    public class SaticiUrunDto
+    {
+        public int Id { get; set; }
+        public string Ad { get; set; } = "";
+        public decimal Fiyat { get; set; }
+        public string? ResimUrl { get; set; }
+        public string KategoriAdi { get; set; } = "";
+        public DateTime EklemeTarihi { get; set; }
+        public int StokMiktari { get; set; }
+    }
+
+    public class SaticiDegerlendirmeDto
+    {
+        public string DegerlendirenAdi { get; set; } = "";
+        public int Puan { get; set; }
+        public string? Yorum { get; set; }
+        public DateTime Tarih { get; set; }
+    }
+}

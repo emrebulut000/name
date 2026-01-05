@@ -1,0 +1,226 @@
+﻿@page "/ilanlarim"
+@using Unı_Proje.Web.Client.Models
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>İlanlarım</h3>
+        <a href="/yeni-urun" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Yeni İlan Ekle
+        </a>
+    </div>
+
+    @* --- ARAMA KUTUSU EKLENDİ --- *@
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <div class="input-group">
+                <span class="input-group-text" id="search-icon"><span>&#128269;</span></span>
+                <input type="text" class="form-control" placeholder="İlan başlığı veya kategori ara..."
+                       @bind="aramaMetni" @oninput="AramaYap" />
+            </div>
+        </div>
+    </div>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger">Hata: @errorMessage</div>
+    }
+    else if (ilanlar == null)
+    {
+        <div class="d-flex align-items-center">
+            <strong>Yükleniyor...</strong>
+            <div class="spinner-border ms-auto" role="status" aria-hidden="true"></div>
+        </div>
+    }
+    else if (!filtreliIlanlar.Any())
+    {
+        <div class="alert alert-warning">
+            "@aramaMetni" aramasına uygun ilan bulunamadı.
+        </div>
+    }
+    else
+    {
+        <table class="table table-striped table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Resim</th>
+                    <th>Başlık</th>
+                    <th>Fiyat</th>
+                    <th>Kategori</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var ilan in filtreliIlanlar)
+                {
+                    <tr>
+                        <td>
+                            @if (!string.IsNullOrEmpty(ilan.ResimUrl))
+                            {
+                                <img src="@ilan.ResimUrl" class="rounded" alt="@ilan.Ad" width="50" height="50" style="object-fit: cover;"
+                                     onerror="this.src='https://via.placeholder.com/50?text=?'">
+                            }
+                            else
+                            {
+                                <img src="https://via.placeholder.com/50?text=?" class="rounded" alt="Ürün" />
+                            }
+                        </td>
+                        <td class="fw-bold">
+                            <a href="@GetUrunUrl(ilan)" class="text-decoration-none text-dark">
+                                @ilan.Ad
+                            </a>
+                        </td>
+                        <td class="text-success fw-bold">@ilan.Fiyat.ToString("N2") ₺</td>
+                        <td>
+                            @if (ilan.Kategori != null)
+                            {
+                                <span class="badge bg-secondary">@ilan.Kategori.Ad</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </td>
+                        <td>
+                            <button class="btn btn-warning btn-sm me-2" @onclick="() => Duzenle(ilan.Id)">
+                                Düzenle
+                            </button>
+                            <button class="btn btn-danger btn-sm" @onclick="() => SilmeOnayi(ilan.Id)">
+                                Sil
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+private List<UrunViewModel>? ilanlar;        // Tüm veriler burada durur
+private List<UrunViewModel> filtreliIlanlar = new(); // Ekranda sadece bu görünür
+private string? errorMessage;
+private string aramaMetni = ""; // Arama kutusundaki yazı
+
+protected override async Task OnInitializedAsync()
+{
+    try
+    {
+        var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+        if (string.IsNullOrEmpty(token))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        // API artık { Urunler, SayfaBilgisi } şeklinde dönüyor
+        var response = await Http.GetFromJsonAsync<SayfaliUrunResponse>("https://localhost:7130/api/urunler/benim");
+
+        if (response != null && response.Urunler != null)
+        {
+            ilanlar = response.Urunler;
+            filtreliIlanlar = ilanlar;
+            Console.WriteLine($"[İLANLARIM] {ilanlar.Count} ilan yüklendi");
+        }
+    }
+    catch (Exception ex)
+    {
+        errorMessage = $"Veriler çekilemedi. Hata: {ex.Message}";
+        Console.WriteLine($"[İLANLARIM] Hata: {ex.Message}");
+    }
+}
+
+// Response modeli
+public class SayfaliUrunResponse
+{
+    public List<UrunViewModel> Urunler { get; set; } = new();
+    public SayfaBilgisi? SayfaBilgisi { get; set; }
+}
+
+public class SayfaBilgisi
+{
+    public int MevcutSayfa { get; set; }
+    public int SayfaBoyutu { get; set; }
+    public int ToplamSayfa { get; set; }
+    public int ToplamUrun { get; set; }
+    public bool OncekiSayfa { get; set; }
+    public bool SonrakiSayfa { get; set; }
+}
+
+    // Arama kutusuna her harf girildiğinde çalışır
+    private void AramaYap(ChangeEventArgs e)
+    {
+        aramaMetni = e.Value?.ToString() ?? "";
+
+        if (string.IsNullOrWhiteSpace(aramaMetni))
+        {
+            filtreliIlanlar = ilanlar!;
+        }
+        else
+        {
+            // LINQ ile filtreleme: Hem Başlıkta hem Kategoride arar (Büyük/Küçük harf duyarsız)
+            filtreliIlanlar = ilanlar!
+                .Where(x => x.Ad.Contains(aramaMetni, StringComparison.OrdinalIgnoreCase) ||
+                            (x.Kategori != null && x.Kategori.Ad.Contains(aramaMetni, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+        }
+    }
+
+    private void Duzenle(int id)
+    {
+        Navigation.NavigateTo($"/urun-duzenle/{id}");
+    }
+
+    // 🔗 SEO-friendly URL oluştur
+    private string GetUrunUrl(UrunViewModel urun)
+    {
+        if (!string.IsNullOrEmpty(urun.Slug))
+        {
+            return $"/urun/{urun.Slug}";
+        }
+        return $"/urun-detay/{urun.Id}"; // Fallback
+    }
+
+    private async Task SilmeOnayi(int id)
+    {
+        bool onay = await JS.InvokeAsync<bool>("confirm", "Bu ilanı silmek istediğinize emin misiniz?");
+        if (onay)
+        {
+            await Sil(id);
+        }
+    }
+
+    private async Task Sil(int id)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"https://localhost:7130/api/urunler/{id}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var silinen = ilanlar?.FirstOrDefault(u => u.Id == id);
+                if (silinen != null)
+                {
+                    ilanlar?.Remove(silinen);
+                    // Silme işleminden sonra listeyi tekrar filtrele (görüntüyü güncelle)
+                    AramaYap(new ChangeEventArgs { Value = aramaMetni });
+                }
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "Silme başarısız oldu.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Silme hatası: {ex.Message}");
+        }
+    }
+
+}

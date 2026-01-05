@@ -1,0 +1,487 @@
+﻿@page "/urun/{slug}"
+@page "/urun-detay/{Id:int}"
+@using Unı_Proje.Web.Client.Services
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@inject SepetServis SepetServis
+@inject MesajServis MesajServis
+@inject TeklifServis TeklifServis
+
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+
+<PageTitle>@(urun?.Ad ?? "Ürün Detayı") - İkinci El Market</PageTitle>
+
+<div class="container mt-5">
+    @if (urun == null)
+    {
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Ürün detayları yükleniyor...</p>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-lg">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h3 class="mb-0">@urun.Ad</h3>
+                <span class="badge bg-light text-primary fs-6">@urun.KategoriAdi</span>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    @* Sol Taraf: Resim *@
+                    <div class="col-md-5">
+                        @if (!string.IsNullOrEmpty(urun.ResimUrl))
+                        {
+                            <img src="@urun.ResimUrl" class="img-fluid rounded shadow-sm" alt="@urun.Ad" 
+                                 onerror="this.src='https://via.placeholder.com/400x300?text=Resim+Yok'">
+                        }
+                        else
+                        {
+                            <img src="https://via.placeholder.com/400x300?text=Resim+Yok" class="img-fluid rounded shadow-sm" alt="@urun.Ad">
+                        }
+                    </div>
+
+                    @* Sağ Taraf: Bilgiler *@
+                    <div class="col-md-7">
+                        <h4 class="text-success fw-bold mb-3">@urun.Fiyat.ToString("N2") ₺</h4>
+
+                        @* 🚫 KENDİ ÜRÜNÜ UYARISI *@
+                        @if (kendiUrunum)
+                        {
+                            <div class="alert alert-warning mb-3">
+                                <strong>
+                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                    Bu sizin ürününüz. Kendi ürününüzü satın alamazsınız.
+                                </strong>
+                            </div>
+                        }
+
+                        @* 📦 STOK BİLGİSİ *@
+                        <div class="alert @(urun.StokVarMi ? "alert-success" : "alert-danger") mb-3">
+                            <strong>
+                                <i class="bi bi-box-seam me-2"></i>
+                                @if (urun.StokVarMi)
+                                {
+                                    <span>Stokta Var (@urun.StokMiktari adet)</span>
+                                }
+                                else
+                                {
+                                    <span>⚠️ Stokta Yok</span>
+                                }
+                            </strong>
+                        </div>
+
+                        <h5 class="text-muted">Açıklama:</h5>
+                        <p class="fs-5">@urun.Aciklama</p>
+
+                        <hr />
+
+                        @* Konum Bilgisi *@
+                        @if (!string.IsNullOrEmpty(urun.Konum))
+                        {
+                            <div class="alert alert-info mb-3">
+                                <i class="bi bi-geo-alt-fill me-2"></i>
+                                <strong>Konum:</strong> @urun.Konum
+                            </div>
+                        }
+
+                        <div class="text-secondary small mb-2">
+                            <i class="bi bi-calendar-event"></i> Eklenme Tarihi: @urun.EklemeTarihi.ToString("dd MMMM yyyy HH:mm")
+                        </div>
+
+                        @* Satıcı Bilgisi *@
+                        @if (urun.SaticiId.HasValue)
+                        {
+                            <div class="card bg-light mb-4">
+                                <div class="card-body py-2">
+                                    <small class="text-muted d-block mb-1">Satıcı</small>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="fw-bold">@(urun.SaticiAdi ?? "Bilinmiyor")</span>
+                                        <a href="/satici-profil/@urun.SaticiId" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-person-circle me-1"></i>
+                                            Profili Gör
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="d-grid gap-2 d-md-block">
+                            @if (!kendiUrunum)
+                            {
+                                <button class="btn btn-success btn-lg me-2" 
+                                        @onclick="SepeteEkle" 
+                                        disabled="@(sepeteEkleniyor || !urun.StokVarMi)">
+                                    @if (sepeteEkleniyor)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        <span>Ekleniyor...</span>
+                                    }
+                                    else if (!urun.StokVarMi)
+                                    {
+                                        <i class="bi bi-x-circle me-2"></i>
+                                        <span>Stokta Yok</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-cart-plus me-2"></i>
+                                        <span>Sepete Ekle</span>
+                                    }
+                                </button>
+                                
+                                @* 💰 TEKLİF VER BUTONU *@
+                                <button class="btn btn-warning btn-lg me-2" 
+                                        @onclick="TeklifVerModalAc"
+                                        disabled="@(!urun.StokVarMi)">
+                                    <i class="bi bi-tag-fill me-2"></i>
+                                    <span>Teklif Ver</span>
+                                </button>
+                                
+                                @if (urun.SaticiId.HasValue)
+                                {
+                                    <button class="btn btn-primary btn-lg me-2" @onclick="SaticiyaMesajGonder">
+                                        <i class="bi bi-chat-dots-fill me-2"></i>
+                                        <span>Satıcıya Mesaj Gönder</span>
+                                    </button>
+                                }
+                            }
+                            else
+                            {
+                                <a href="/urun-duzenle/@Id" class="btn btn-info btn-lg me-2">
+                                    <i class="bi bi-pencil-square me-2"></i>
+                                    <span>Ürünü Düzenle</span>
+                                </a>
+                            }
+                            <a href="/" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Listeye Dön
+                            </a>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(mesaj))
+                        {
+                            <div class="alert @mesajTipi mt-3" role="alert">
+                                @mesaj
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@* 💰 TEKLİF VER MODAL *@
+@if (teklifModalAcik)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">
+                        <i class="bi bi-tag-fill me-2"></i>
+                        Teklif Ver
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="TeklifVerModalKapat"></button>
+                </div>
+                <div class="modal-body">
+                    @if (urun != null)
+                    {
+                        <div class="alert alert-info">
+                            <strong>@urun.Ad</strong>
+                            <div class="text-muted small mt-1">Satış Fiyatı: <strong>@urun.Fiyat.ToString("N2") ₺</strong></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Teklif Tutarınız (₺)</label>
+                            <input type="number" 
+                                   class="form-control form-control-lg" 
+                                   @bind="teklifTutari"
+                                   min="1"
+                                   max="@(urun.Fiyat - 1)"
+                                   step="10"
+                                   placeholder="@((urun.Fiyat * 0.7m).ToString("N0"))" />
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Teklifiniz satış fiyatından düşük olmalıdır.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Açıklama (Opsiyonel)</label>
+                            <textarea class="form-control" 
+                                      @bind="teklifAciklama"
+                                      rows="3"
+                                      maxlength="200"
+                                      placeholder="Örn: 1000 TL olur mu?"></textarea>
+                            <div class="form-text">Maksimum 200 karakter</div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(teklifMesaj))
+                        {
+                            <div class="alert @teklifMesajTipi">
+                                @teklifMesaj
+                            </div>
+                        }
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="TeklifVerModalKapat">İptal</button>
+                    <button type="button" class="btn btn-warning" @onclick="TeklifGonder" disabled="@teklifGonderiliyor">
+                        @if (teklifGonderiliyor)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        <i class="bi bi-send-fill me-2"></i>
+                        Teklif Gönder
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+[Parameter]
+public int Id { get; set; }
+
+[Parameter]
+public string? Slug { get; set; }
+
+private UrunDetayViewModel? urun;
+private bool sepeteEkleniyor = false;
+private string mesaj = "";
+private string mesajTipi = "";
+private int? mevcutKullaniciId;
+private bool kendiUrunum => urun?.SaticiId.HasValue == true && mevcutKullaniciId.HasValue && urun.SaticiId == mevcutKullaniciId;
+
+// Teklif Ver Modal
+private bool teklifModalAcik = false;
+private decimal teklifTutari = 0;
+private string teklifAciklama = "";
+private bool teklifGonderiliyor = false;
+private string teklifMesaj = "";
+private string teklifMesajTipi = "";
+
+protected override async Task OnInitializedAsync()
+{
+    try
+    {
+        // Mevcut kullanıcının ID'sini al
+        var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+        if (!string.IsNullOrEmpty(token))
+        {
+            try
+            {
+                var profilResponse = await Http.GetFromJsonAsync<ProfilBasitDto>("https://localhost:7000/api/kullanicilar/ben");
+                if (profilResponse != null)
+                {
+                    mevcutKullaniciId = profilResponse.Id;
+                    Console.WriteLine($"[URUN DETAY] Mevcut kullanıcı ID: {mevcutKullaniciId}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[URUN DETAY] Kullanıcı bilgisi alınamadı: {ex.Message}");
+            }
+        }
+
+        // API'den veriyi çek - Slug varsa slug ile, yoksa ID ile
+        if (!string.IsNullOrEmpty(Slug))
+        {
+            Console.WriteLine($"[🔗 URUN DETAY] Slug ile yükleniyor: {Slug}");
+            urun = await Http.GetFromJsonAsync<UrunDetayViewModel>($"https://localhost:7130/api/urunler/slug/{Slug}");
+        }
+        else if (Id > 0)
+        {
+            Console.WriteLine($"[🔗 URUN DETAY] ID ile yükleniyor: {Id}");
+            urun = await Http.GetFromJsonAsync<UrunDetayViewModel>($"https://localhost:7130/api/urunler/{Id}");
+        }
+        
+        if (urun != null)
+        {
+            Console.WriteLine($"[URUN DETAY] Ürün satıcı ID: {urun.SaticiId}, Mevcut kullanıcı ID: {mevcutKullaniciId}, Kendi ürünü: {kendiUrunum}");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Detay yükleme hatası: {ex.Message}");
+    }
+}
+
+private class ProfilBasitDto
+{
+    public int Id { get; set; }
+    public string AdSoyad { get; set; } = "";
+    public string Email { get; set; } = "";
+}
+
+private async Task SepeteEkle()
+{
+    sepeteEkleniyor = true;
+    mesaj = "";
+        
+    try
+    {
+        var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            
+        if (string.IsNullOrEmpty(token))
+        {
+            mesaj = "Sepete ürün eklemek için giriş yapmalısınız!";
+            mesajTipi = "alert-warning";
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        var sonuc = await SepetServis.SepeteEkle(Id, token);
+            
+        if (sonuc.BasariliMi)
+        {
+            mesaj = $"✅ {sonuc.Mesaj}";
+            mesajTipi = "alert-success";
+        }
+        else
+        {
+            mesaj = $"❌ {sonuc.Mesaj}";
+            mesajTipi = "alert-danger";
+        }
+    }
+    catch (Exception ex)
+    {
+        mesaj = $"❌ Hata: {ex.Message}";
+        mesajTipi = "alert-danger";
+    }
+    finally
+    {
+        sepeteEkleniyor = false;
+    }
+}
+
+    private async Task SaticiyaMesajGonder()
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            if (!urun.SaticiId.HasValue)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Satıcı bilgisi bulunamadı.");
+                return;
+            }
+
+            // Mesajlaşma sayfasına yönlendir
+            Navigation.NavigateTo($"/mesajlarim/{urun.SaticiId.Value}");
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Hata: {ex.Message}");
+        }
+    }
+
+    // TEKLİF VER METODLARI
+    private void TeklifVerModalAc()
+    {
+        if (urun != null)
+        {
+            teklifTutari = Math.Round(urun.Fiyat * 0.7m, 0); // %30 indirimli öneri
+            teklifAciklama = "";
+            teklifMesaj = "";
+            teklifModalAcik = true;
+        }
+    }
+
+    private void TeklifVerModalKapat()
+    {
+        teklifModalAcik = false;
+        teklifTutari = 0;
+        teklifAciklama = "";
+        teklifMesaj = "";
+    }
+
+    private async Task TeklifGonder()
+    {
+        teklifMesaj = "";
+        
+        if (urun == null) return;
+
+        // Validasyon
+        if (teklifTutari <= 0)
+        {
+            teklifMesaj = "Teklif tutarı 0'dan büyük olmalıdır.";
+            teklifMesajTipi = "alert-warning";
+            return;
+        }
+
+        if (teklifTutari >= urun.Fiyat)
+        {
+            teklifMesaj = $"Teklif tutarı satış fiyatından ({urun.Fiyat:N2} ₺) düşük olmalıdır.";
+            teklifMesajTipi = "alert-warning";
+            return;
+        }
+
+        teklifGonderiliyor = true;
+
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            var sonuc = await TeklifServis.TeklifGonder(Id, teklifTutari, teklifAciklama, token);
+            
+            if (sonuc.BasariliMi)
+            {
+                teklifMesaj = $"✅ {sonuc.Mesaj}";
+                teklifMesajTipi = "alert-success";
+                
+                await Task.Delay(2000);
+                TeklifVerModalKapat();
+                
+                await JSRuntime.InvokeVoidAsync("alert", "Teklifiniz başarıyla gönderildi! Satıcı yanıt verdiğinde bildirim alacaksınız.");
+            }
+            else
+            {
+                teklifMesaj = $"❌ {sonuc.Mesaj}";
+                teklifMesajTipi = "alert-danger";
+            }
+        }
+        catch (Exception ex)
+        {
+            teklifMesaj = $"❌ Hata: {ex.Message}";
+            teklifMesajTipi = "alert-danger";
+        }
+        finally
+        {
+            teklifGonderiliyor = false;
+        }
+    }
+
+    // Bu sayfa için özel model (Backend'den gelen veriyle eşleşmeli)
+    public class UrunDetayViewModel
+    {
+        public int Id { get; set; }
+        public string Ad { get; set; } = "";
+        public string Aciklama { get; set; } = "";
+        public decimal Fiyat { get; set; }
+        public DateTime EklemeTarihi { get; set; }
+        public string KategoriAdi { get; set; } = "";
+        public string ResimUrl { get; set; } = "";
+        public int? SaticiId { get; set; }
+        public string? SaticiAdi { get; set; }
+        // 📦 Stok bilgisi
+        public int StokMiktari { get; set; }
+        public bool StokVarMi { get; set; }
+        // 📍 Konum bilgisi
+        public string? Konum { get; set; }
+    }
+}

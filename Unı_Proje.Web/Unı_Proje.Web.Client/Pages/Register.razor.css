@@ -1,0 +1,68 @@
+﻿/* Sayfanın arka planını hafif gri yapalım */
+.row {
+    margin-top: 50px;
+}
+
+/* Kayıt Kartı Tasarımı */
+.card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    background: #ffffff;
+    overflow: hidden;
+}
+
+/* Kartın Başlığı - Kayıt için farklı bir renk (Yeşil/Mavi tonları) */
+.card-header {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); /* Modern Yeşil Geçiş */
+    color: white;
+    font-weight: bold;
+    padding: 20px;
+    border-bottom: none;
+}
+
+/* Form Elemanları */
+.form-label {
+    font-weight: 600;
+    color: #555;
+}
+
+.form-control {
+    border-radius: 8px;
+    padding: 10px 15px;
+    border: 1px solid #e0e0e0;
+    background-color: #f9f9f9;
+    transition: all 0.3s ease;
+}
+
+    .form-control:focus {
+        border-color: #38ef7d;
+        box-shadow: 0 0 0 0.2rem rgba(56, 239, 125, 0.25);
+        background-color: #fff;
+    }
+
+/* Buton Tasarımı */
+.btn-success {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    transition: transform 0.2s;
+}
+
+    .btn-success:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(17, 153, 142, 0.4);
+    }
+
+    .btn-success:active {
+        transform: translateY(0);
+    }
+
+/* Hata Mesajı Kutusu */
+.alert-danger {
+    border-radius: 8px;
+    font-size: 0.9rem;
+}

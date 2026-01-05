@@ -1,0 +1,53 @@
+﻿@using Unı_Proje.Web.Client.Services
+@inject ThemeService ThemeService
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+
+@* Bu component görünmez ama tema'yı sadece tarayıcıda başlatır *@
+
+@code {
+    private bool _hasRendered = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_hasRendered)
+        {
+            _hasRendered = true;
+            Console.WriteLine("[THEME INITIALIZER] 🚀 İlk render sonrası - Tarayıcıda tema başlatılıyor...");
+            
+            // Tema servisini başlat (sadece tarayıcıda, OnAfterRenderAsync garantili)
+            await InitializeThemeWithRetry();
+            
+            Console.WriteLine("[THEME INITIALIZER] ✅ Tema başarıyla başlatıldı");
+        }
+    }
+
+    private async Task InitializeThemeWithRetry()
+    {
+        int maxRetries = 3;
+        int retryCount = 0;
+        
+        while (retryCount < maxRetries)
+        {
+            try
+            {
+                await ThemeService.InitializeThemeAsync();
+                Console.WriteLine($"[THEME INITIALIZER] ✅ Tema başarıyla yüklendi: {ThemeService.CurrentTheme}");
+                return;
+            }
+            catch (Exception ex)
+            {
+                retryCount++;
+                Console.WriteLine($"[THEME INITIALIZER] ⚠️ Tema başlatma hatası (Deneme {retryCount}/{maxRetries}): {ex.Message}");
+                
+                if (retryCount < maxRetries)
+                {
+                    await Task.Delay(100); // 100ms bekle
+                }
+            }
+        }
+        
+        Console.WriteLine("[THEME INITIALIZER] ❌ Tema başlatılamadı, varsayılan (light) kullanılacak");
+    }
+}
+
+

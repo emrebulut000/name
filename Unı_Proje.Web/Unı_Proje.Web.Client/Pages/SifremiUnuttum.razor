@@ -1,0 +1,262 @@
+@page "/sifremi-unuttum"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+
+<PageTitle>Þifremi Unuttum</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white text-center">
+                    <h3><i class="bi bi-key-fill me-2"></i>Þifremi Unuttum</h3>
+                </div>
+                <div class="card-body p-4">
+                    
+                    @if (adim == 1)
+                    {
+                        @* Adým 1: Email Giriþi *@
+                        <div class="mb-3">
+                            <p class="text-muted text-center">
+                                Kayýtlý email adresinizi girin, size þifre sýfýrlama kodu gönderelim.
+                            </p>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Email Adresiniz</label>
+                            <input type="email" 
+                                   class="form-control form-control-lg" 
+                                   @bind="email"
+                                   placeholder="ornek@email.com"
+                                   disabled="@yukleniyor" />
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary btn-lg" 
+                                    @onclick="KodGonder"
+                                    disabled="@yukleniyor">
+                                @if (yukleniyor)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-send-fill me-2"></i>
+                                Kod Gönder
+                            </button>
+                            <a href="/login" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>
+                                Giriþ Sayfasýna Dön
+                            </a>
+                        </div>
+                    }
+                    else if (adim == 2)
+                    {
+                        @* Adým 2: Kod Doðrulama ve Yeni Þifre *@
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle me-2"></i>
+                            Email adresinize 6 haneli doðrulama kodu gönderildi.
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Doðrulama Kodu</label>
+                            <input type="text" 
+                                   class="form-control form-control-lg text-center" 
+                                   @bind="kod"
+                                   placeholder="000000"
+                                   maxlength="6"
+                                   style="letter-spacing: 5px; font-size: 24px;"
+                                   disabled="@yukleniyor" />
+                            <small class="text-muted">Email'inize gelen 6 haneli kodu girin</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Yeni Þifre</label>
+                            <input type="password" 
+                                   class="form-control form-control-lg" 
+                                   @bind="yeniSifre"
+                                   placeholder="En az 6 karakter"
+                                   disabled="@yukleniyor" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Yeni Þifre (Tekrar)</label>
+                            <input type="password" 
+                                   class="form-control form-control-lg" 
+                                   @bind="yeniSifreTekrar"
+                                   placeholder="Þifrenizi tekrar girin"
+                                   disabled="@yukleniyor" />
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success btn-lg" 
+                                    @onclick="SifreYenile"
+                                    disabled="@yukleniyor">
+                                @if (yukleniyor)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-check-circle-fill me-2"></i>
+                                Þifremi Yenile
+                            </button>
+                            <button class="btn btn-outline-secondary" 
+                                    @onclick="() => adim = 1"
+                                    disabled="@yukleniyor">
+                                <i class="bi bi-arrow-left me-2"></i>
+                                Geri
+                            </button>
+                        </div>
+
+                        <div class="text-center mt-3">
+                            <small class="text-muted">
+                                Kod gelmedi mi? 
+                                <button class="btn btn-link btn-sm p-0" @onclick="KodGonder" disabled="@yukleniyor">
+                                    Tekrar Gönder
+                                </button>
+                            </small>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(mesaj))
+                    {
+                        <div class="alert @mesajTipi mt-3" role="alert">
+                            @mesaj
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string email = "";
+    private string kod = "";
+    private string yeniSifre = "";
+    private string yeniSifreTekrar = "";
+    private int adim = 1;
+    private bool yukleniyor = false;
+    private string mesaj = "";
+    private string mesajTipi = "";
+
+    private async Task KodGonder()
+    {
+        mesaj = "";
+        
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            mesaj = "Lütfen email adresinizi girin.";
+            mesajTipi = "alert-warning";
+            return;
+        }
+
+        if (!email.Contains("@"))
+        {
+            mesaj = "Geçerli bir email adresi girin.";
+            mesajTipi = "alert-warning";
+            return;
+        }
+
+        yukleniyor = true;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("https://localhost:7130/api/sifresifirla/kod-gonder", 
+                new { Email = email });
+
+            if (response.IsSuccessStatusCode)
+            {
+                mesaj = "Doðrulama kodu email adresinize gönderildi!";
+                mesajTipi = "alert-success";
+                adim = 2;
+            }
+            else
+            {
+                var hata = await response.Content.ReadAsStringAsync();
+                mesaj = $"? {hata}";
+                mesajTipi = "alert-danger";
+            }
+        }
+        catch (Exception ex)
+        {
+            mesaj = $"? Hata: {ex.Message}";
+            mesajTipi = "alert-danger";
+        }
+        finally
+        {
+            yukleniyor = false;
+        }
+    }
+
+    private async Task SifreYenile()
+    {
+        mesaj = "";
+
+        if (string.IsNullOrWhiteSpace(kod) || kod.Length != 6)
+        {
+            mesaj = "Lütfen 6 haneli doðrulama kodunu girin.";
+            mesajTipi = "alert-warning";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(yeniSifre) || yeniSifre.Length < 6)
+        {
+            mesaj = "Yeni þifreniz en az 6 karakter olmalýdýr.";
+            mesajTipi = "alert-warning";
+            return;
+        }
+
+        if (yeniSifre != yeniSifreTekrar)
+        {
+            mesaj = "Þifreler eþleþmiyor.";
+            mesajTipi = "alert-warning";
+            return;
+        }
+
+        yukleniyor = true;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("https://localhost:7130/api/sifresifirla/sifre-yenile", 
+                new { Email = email, Kod = kod, YeniSifre = yeniSifre });
+
+            if (response.IsSuccessStatusCode)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "? Þifreniz baþarýyla güncellendi! Giriþ sayfasýna yönlendiriliyorsunuz...");
+                Navigation.NavigateTo("/login");
+            }
+            else
+            {
+                var hata = await response.Content.ReadAsStringAsync();
+                mesaj = $"? {hata}";
+                mesajTipi = "alert-danger";
+            }
+        }
+        catch (Exception ex)
+        {
+            mesaj = $"? Hata: {ex.Message}";
+            mesajTipi = "alert-danger";
+        }
+        finally
+        {
+            yukleniyor = false;
+        }
+    }
+}
+
+<style>
+    .card {
+        border: none;
+        border-radius: 15px;
+    }
+
+    .card-header {
+        border-radius: 15px 15px 0 0 !important;
+    }
+
+    input:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+</style>

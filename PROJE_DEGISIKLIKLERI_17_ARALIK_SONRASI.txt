@@ -1,0 +1,1098 @@
+================================================================================
+        ÝKÝNCÝ EL MARKET PLATFORMU - PROJE DEÐÝÞÝKLÝKLERÝ
+              17 ARALIK 2024 TARÝHÝNDEN ÝTÝBAREN
+================================================================================
+
+Proje Adý: Üný_Proje (Ýkinci El Market)
+Platform: ASP.NET Core 8.0 + Blazor WebAssembly
+Rapor Tarihi: 28 Aralýk 2024
+
+================================================================================
+                        ÝÇÝNDEKÝLER
+================================================================================
+
+1. PROJE YAPISI
+2. YENÝ ÖZELLÝKLER VE SÝSTEMLER
+3. FRONTEND GELÝÞTÝRMELERÝ (Blazor WebAssembly)
+4. BACKEND GELÝÞTÝRMELERÝ (ASP.NET Core API)
+5. VERÝTABANI DEÐÝÞÝKLÝKLERÝ
+6. KULLANICI ARAYÜZÜ ÝYÝLEÞTÝRMELERÝ
+7. GÜVENLÝK VE KÝMLÝK DOÐRULAMA
+8. TAMAMLANAN DÖKÜMANTASYONLAR
+
+================================================================================
+                    1. PROJE YAPISI
+================================================================================
+
+PROJELER:
+---------
+1. Üný_Proje (Backend - ASP.NET Core Web API + Razor Pages)
+   - Lokasyon: C:\Users\emreb\source\repos\Üný_Proje\Üný_Proje\
+   - Port: 7130 (HTTPS)
+   - Veritabaný: MySQL (ikinciel_proje_db)
+   - Rol: REST API Saðlayýcý, Veritabaný Yönetimi
+
+2. Üný_Proje.Web (Server - Blazor Server)
+   - Lokasyon: C:\Users\emreb\source\repos\Üný_Proje\Üný_Proje.Web\Üný_Proje.Web\
+   - Port: 7000 (HTTPS)
+   - Rol: Server-side rendering, Authentication
+
+3. Üný_Proje.Web.Client (Frontend - Blazor WebAssembly)
+   - Lokasyon: C:\Users\emreb\source\repos\Üný_Proje\Üný_Proje.Web\Üný_Proje.Web.Client\
+   - Teknoloji: Blazor WASM, Bootstrap 5, Bootstrap Icons
+   - Rol: Kullanýcý arayüzü, Client-side logic
+
+TEKNOLOJILER:
+-------------
+? .NET 8.0
+? Blazor WebAssembly (InteractiveWebAssemblyRenderMode)
+? ASP.NET Core Web API
+? Entity Framework Core
+? MySQL Database
+? JWT Token Authentication
+? Bootstrap 5.3
+? Bootstrap Icons
+? JavaScript Interop
+? LocalStorage API
+? HTTP Client
+? Razor Components
+
+================================================================================
+                2. YENÝ ÖZELLÝKLER VE SÝSTEMLER
+================================================================================
+
+2.1. BÝLDÝRÝM SÝSTEMÝ ?
+------------------------
+Dosyalar:
+- Backend: Üný_Proje\Controllers\BildirimlerController.cs
+- Model: Üný_Proje\Models\Bildirim.cs
+- Frontend Service: Üný_Proje.Web.Client\Services\BildirimServis.cs
+- UI Component: Üný_Proje.Web.Client\Components\Layout\TopNavbar.razor
+- SQL: Üný_Proje\SQL_Bildirimler.sql
+- Dokümantasyon: Üný_Proje\BILDIRIM_SISTEMI_TAMAMLANDI.md
+
+Özellikler:
+? Gerçek zamanlý bildirim gösterimi (30 saniye polling)
+? Navbar'da bildirim ikonu ve badge
+? Okunmamýþ bildirim sayýsý gösterimi
+? Pulse animasyonu ile dikkat çekme
+? Dropdown bildirim listesi
+? Bildirim tipleri: Sipariþ, Deðerlendirme, Mesaj, Satýþ
+? Okundu iþaretleme (tekil ve toplu)
+? Bildirim silme
+? Zaman gösterimi (relatif - "5 dakika önce")
+? Ýlgili sayfaya yönlendirme
+? Otomatik sipariþ durumu bildirimleri
+
+API Endpoints:
+- GET /api/bildirimler - Tüm bildirimleri getir
+- GET /api/bildirimler/okunmamis-sayisi - Okunmamýþ sayý
+- PUT /api/bildirimler/{id}/okundu - Okundu iþaretle
+- PUT /api/bildirimler/hepsini-okundu - Tümünü okundu iþaretle
+- DELETE /api/bildirimler/{id} - Bildirim sil
+
+Veritabaný:
+- Tablo: bildirimler
+- Kolonlar: Id, KullaniciId, Tip, Baslik, Mesaj, IliskiliId, Okundu, OlusturmaTarihi
+
+
+2.2. DEÐERLENDÝRME SÝSTEMÝ ?
+-----------------------------
+Dosyalar:
+- Backend: Üný_Proje\Controllers\DegerlendirmeController.cs
+- Model: Üný_Proje\Models\SaticiDegerlendirme.cs
+- DTO: Üný_Proje\DTOs\DegerlendirmeDto.cs
+- Frontend Service: Üný_Proje.Web.Client\Services\DegerlendirmeServis.cs
+- UI Component: Üný_Proje.Web.Client\Components\DegerlendirmeModal.razor
+- Dokümantasyon: Üný_Proje\DEGERLENDIRME_SISTEMI_CALISIR_HALE_GETIRILDI.md
+
+Özellikler:
+? Satýcý puanlama sistemi (1-5 yýldýz)
+? Yorum ekleme
+? Sadece teslim edilen sipariþler için deðerlendirme
+? Bir sipariþ için bir deðerlendirme kýsýtý
+? Ortalama puan hesaplama
+? Toplam deðerlendirme sayýsý
+? Deðerlendirme geçmiþi
+? Bootstrap Modal entegrasyonu
+? Yýldýz animasyonlarý
+
+API Endpoints:
+- POST /api/degerlendirme - Deðerlendirme yap
+- GET /api/degerlendirme/satici/{saticiId} - Satýcýnýn deðerlendirmeleri
+- GET /api/degerlendirme/siparis/{siparisId}/kontrol - Deðerlendirme yapýldý mý kontrolü
+
+Veritabaný:
+- Tablo: satici_degerlendirmeleri
+- Kullanýcý tablosuna eklenen: OrtalamaPuan, ToplamDegerlendirme
+- UNIQUE INDEX: (SiparisId, DegerlendirenId)
+
+
+2.3. TEKLÝF SÝSTEMÝ ?
+---------------------
+Dosyalar:
+- Backend: Üný_Proje\Controllers\TekliflerController.cs
+- Model: Üný_Proje\Models\Teklif.cs
+- Frontend Service: Üný_Proje.Web.Client\Services\TeklifServis.cs
+- UI Pages: 
+  * Üný_Proje.Web.Client\Pages\Tekliflerim.razor
+  * Üný_Proje.Web.Client\Pages\GelenTeklifler.razor
+
+Özellikler:
+? Ürün için teklif gönderme
+? Teklif açýklamasý ekleme
+? Satýcýnýn teklifi kabul/red etmesi
+? Alýcýnýn teklifi iptal etmesi
+? Teklif durumlarý: Bekliyor, Kabul Edildi, Reddedildi, Ýptal Edildi
+? Gönderilen teklifler listesi
+? Gelen teklifler listesi
+? Teklif detay görüntüleme
+? Satýcý yanýtý ekleme
+
+API Endpoints:
+- POST /api/teklifler - Teklif gönder
+- GET /api/teklifler/gonderdiklerim - Gönderdiðim teklifler
+- GET /api/teklifler/gelenler - Gelen teklifler
+- PUT /api/teklifler/{id}/kabul - Teklifi kabul et
+- PUT /api/teklifler/{id}/red - Teklifi reddet
+- PUT /api/teklifler/{id}/iptal - Teklifi iptal et
+- GET /api/teklifler/{id} - Teklif detayý
+
+Veritabaný:
+- Tablo: teklifler
+- Enum: TeklifDurumu
+
+
+2.4. CHAT BOT SÝSTEMÝ (BOVÝ) ?
+-------------------------------
+Dosyalar:
+- Backend: 
+  * Üný_Proje\Controllers\ChatBotController.cs
+  * Üný_Proje\Services\ChatBotServis.cs
+- Model: Üný_Proje\Models\ChatMesaj.cs
+- DTO: Üný_Proje\DTOs\ChatMesajDto.cs
+- Frontend Service: Üný_Proje.Web.Client\Services\ChatBotServis.cs
+- UI Component: Üný_Proje.Web.Client\Components\ChatBot.razor
+
+Özellikler:
+? Yapay zeka destekli müþteri hizmeti
+? Sabit sað alt köþe konumu
+? Açýlýr/kapanýr chat penceresi
+? Session bazlý konuþma geçmiþi
+? Hýzlý cevap butonlarý
+? Akýllý arama (ürün, kategori)
+? Sipariþ takibi
+? Yardým ve SSS
+? Emoji desteði
+? Yükleniyor animasyonu
+? Enter tuþu ile mesaj gönderme
+? Gradient mavi-mor tema (site temasýna uygun)
+? Pulse animasyonu
+? Wave animasyonu (BOVÝ ikonu)
+
+API Endpoints:
+- POST /api/chatbot/mesaj - Mesaj gönder
+
+Yapay Zeka Özellikleri:
+? Doðal dil iþleme (keyword matching)
+? Ürün önerisi
+? Kategori yönlendirme
+? Hesap yardýmý
+? Sýk sorulan sorular
+
+
+2.5. MESAJLAÞMA SÝSTEMÝ ?
+-------------------------
+Dosyalar:
+- Backend: Üný_Proje\Controllers\MesajlarController.cs (Web API)
+- Backend: Üný_Proje.Web\Controllers\MesajlarController.cs (Web Server)
+- Model: Üný_Proje\Models\Mesaj.cs
+- Frontend Service: Üný_Proje.Web.Client\Services\MesajServis.cs
+- UI Page: Üný_Proje.Web.Client\Pages\Mesajlarim.razor
+
+Özellikler:
+? Kullanýcýlar arasý mesajlaþma
+? Gönderilen mesajlar listesi
+? Alýnan mesajlar listesi
+? Mesaj okuma durumu
+? Mesaj silme
+? Mesaj detay görüntüleme
+? Zaman damgasý
+
+
+2.6. SEPETÝM SÝSTEMÝ ?
+----------------------
+Dosyalar:
+- Backend: Üný_Proje.Web\Controllers\SepetController.cs
+- Model: Üný_Proje\Models\SepetUrun.cs
+- DTO: Üný_Proje\DTOs\SepetItemDto.cs
+- Frontend Service: Üný_Proje.Web.Client\Services\SepetServis.cs
+- UI Page: Üný_Proje.Web.Client\Pages\Sepetim.razor
+- Migration: Üný_Proje\Migrations\20251130203818_SepetEklendi.cs
+
+Özellikler:
+? Sepete ürün ekleme
+? Sepetten ürün çýkarma
+? Sepet görüntüleme
+? Toplam tutar hesaplama
+? Sepeti temizleme
+
+Veritabaný:
+- Tablo: sepet_urunler
+- Migration Date: 30 Kasým 2025
+
+
+2.7. SÝPARÝÞ SÝSTEMÝ ?
+----------------------
+Dosyalar:
+- Backend: Üný_Proje.Web\Controllers\SiparislerController.cs
+- Model: 
+  * Üný_Proje\Models\Siparis.cs
+  * Üný_Proje\Models\SiparisDetay.cs
+- DTO: Üný_Proje\DTOs\SiparisDto.cs
+- Frontend Service: Üný_Proje.Web.Client\Services\SiparisServis.cs
+- UI Pages:
+  * Üný_Proje.Web.Client\Pages\Siparislerim.razor
+  * Üný_Proje.Web.Client\Pages\SiparisDetay.razor
+
+Özellikler:
+? Sipariþ oluþturma
+? Sipariþ listesi
+? Sipariþ detayý
+? Sipariþ durumu takibi
+? Sipariþ iptal
+? Admin sipariþ yönetimi
+? Durum güncelleme ile bildirim tetikleme
+
+
+2.8. FAVORÝLER SÝSTEMÝ ?
+-------------------------
+Dosyalar:
+- Backend: Üný_Proje.Web\Controllers\FavorilerController.cs
+- Model: Üný_Proje\Models\Favori.cs
+- Frontend Service: Üný_Proje.Web.Client\Services\FavoriServis.cs
+- UI Page: Üný_Proje.Web.Client\Pages\Favorilerim.razor
+
+Özellikler:
+? Favorilere ekleme
+? Favorilerden çýkarma
+? Favori listesi
+? Favori kontrolü
+
+
+2.9. KONUM/HARÝTA SÝSTEMÝ ?
+---------------------------
+Dosyalar:
+- Backend: Üný_Proje\Controllers\KonumController.cs
+- Service: Üný_Proje\Services\GeocodingService.cs
+- Data: Üný_Proje\Data\TurkiyeIlIlce.cs
+- Migration: Üný_Proje\Migrations\20251206_AddKonumToUrun.cs
+- Migration: Üný_Proje\Migrations\20251223_AddLatitudeLongitudeToUrun.cs
+
+Özellikler:
+? Türkiye il ve ilçe listesi
+? Ürün konumu (Il, Ilce)
+? Koordinat desteði (Latitude, Longitude)
+? Geocoding servisi
+? Konum bazlý arama/filtreleme
+
+
+2.10. DARK MODE / TEMA SÝSTEMÝ ?
+---------------------------------
+Dosyalar:
+- Frontend Service: Üný_Proje.Web.Client\Services\ThemeService.cs
+- UI Components:
+  * Üný_Proje.Web.Client\Components\ThemeToggle.razor
+  * Üný_Proje.Web.Client\Components\ThemeInitializer.razor
+- Demo Page: Üný_Proje.Web.Client\Pages\ThemeDemo.razor
+
+Özellikler:
+? Light/Dark mode geçiþi
+? LocalStorage'da tema tercihi saklama
+? Sayfa yüklendiðinde tema uygulama
+? Tema toggle butonu
+? CSS deðiþkenli dinamik tema
+? Demo sayfasý ile test
+
+Tema Renkleri:
+- Primary: #4A90E2 ? #5BA3F5
+- Dark Background: #1a1a2e ? #16213e
+- Dark Card: #2d2d44 ? #1f2937
+
+
+2.11. ADMÝN PANELÝ ?
+---------------------
+Dosyalar:
+- Backend: 
+  * Üný_Proje\Controllers\AdminController.cs
+  * Üný_Proje.Web\Controllers\AdminController.cs
+- Frontend Service: Üný_Proje.Web.Client\Services\AdminServis.cs
+- UI Page: Üný_Proje.Web.Client\Pages\Admin.razor
+
+Özellikler:
+? Admin rolü kontrolü
+? Kullanýcý yönetimi
+? Ürün yönetimi (onay/reddetme)
+? Sipariþ yönetimi
+? Kategori yönetimi (CRUD)
+? Ýstatistikler
+? Raporlama
+
+
+2.12. PROFÝL YÖNETÝMÝ ?
+-----------------------
+Dosyalar:
+- Backend: 
+  * Üný_Proje\Controllers\KullanicilarController.cs
+  * Üný_Proje\Controllers\SaticiProfilController.cs
+- DTO: Üný_Proje\DTOs\KullaniciProfilDto.cs
+- Frontend Service: Üný_Proje.Web.Client\Services\ProfilServis.cs
+- UI Pages:
+  * Üný_Proje.Web.Client\Pages\Profilim.razor
+  * Üný_Proje.Web.Client\Pages\SaticiProfil.razor
+- Migrations:
+  * Üný_Proje\Migrations\20251129202942_ProfilResmiEklendi.cs
+  * Üný_Proje\Migrations\20251129220308_ProfilDetaylariEklendi.cs
+
+Özellikler:
+? Profil resmi yükleme
+? Profil detaylarý (Bio, Telefon, Adres)
+? Profil güncelleme
+? Satýcý profilini görüntüleme
+? Satýcý deðerlendirmeleri görüntüleme
+? Satýcý ilanlarý görüntüleme
+
+
+2.13. E-POSTA SÝSTEMÝ ?
+------------------------
+Dosyalar:
+- Service: Üný_Proje\Services\EmailServis.cs
+- Controllers:
+  * Üný_Proje\Controllers\EmailDogrulamaController.cs
+  * Üný_Proje\Controllers\SifreSifirlaController.cs
+- Models:
+  * Üný_Proje\Models\EmailDogrulamaToken.cs
+  * Üný_Proje\Models\SifreResetToken.cs
+
+Özellikler:
+? E-posta doðrulama
+? Þifre sýfýrlama e-postasý
+? HTML e-posta þablonlarý
+? Token bazlý güvenlik
+? Token sona erme kontrolü
+
+================================================================================
+                3. FRONTEND GELÝÞTÝRMELERÝ (Blazor WebAssembly)
+================================================================================
+
+3.1. SAYFA BÝLEÞENLERÝ (Pages)
+------------------------------
+? Home.razor - Ana sayfa (ürün listeleme, arama, filtreleme)
+? Login.razor - Giriþ sayfasý
+? Register.razor - Kayýt sayfasý
+? Logout.razor - Çýkýþ sayfasý
+? UrunDetay.razor - Ürün detay sayfasý
+? YeniUrun.razor - Yeni ürün ekleme
+? UrunDuzenle.razor - Ürün düzenleme
+? Ilanlarim.razor - Kullanýcýnýn ilanlarý
+? Favorilerim.razor - Favori ürünler
+? Mesajlarim.razor - Mesajlar
+? Tekliflerim.razor - Gönderilen teklifler
+? GelenTeklifler.razor - Gelen teklifler
+? Sepetim.razor - Alýþveriþ sepeti
+? Siparislerim.razor - Sipariþler
+? SiparisDetay.razor - Sipariþ detayý
+? Profilim.razor - Profil yönetimi
+? SaticiProfil.razor - Satýcý profili görüntüleme
+? Admin.razor - Admin paneli
+? ThemeDemo.razor - Tema demo sayfasý
+? Bildirimler.razor - Bildirimler sayfasý
+? SifremiUnuttum.razor - Þifre sýfýrlama
+? Counter.razor - Örnek sayfa
+
+
+3.2. LAYOUT BÝLEÞENLERÝ (Components/Layout)
+-------------------------------------------
+? MainLayout.razor - Ana layout (sidebar + content)
+? NavMenu.razor - Sol sidebar navigasyon menüsü
+  - Kategori listesi (dinamik API'den)
+  - Kullanýcý menüleri (AuthorizeView)
+  - Admin menüsü (rol bazlý)
+  - Dark mode demo linki
+? TopNavbar.razor - Üst navbar
+  - Logo
+  - Arama kutusu
+  - Bildirim ikonu (badge ile)
+  - Kullanýcý menüsü
+  - Sepet ikonu
+? Routes.razor - Routing yapýlandýrmasý
+
+
+3.3. YARDIMCI BÝLEÞENLER (Components)
+-------------------------------------
+? ChatBot.razor - BOVÝ chat bot bileþeni
+? ThemeToggle.razor - Tema deðiþtirme butonu
+? ThemeInitializer.razor - Tema baþlangýç ayarý
+? DegerlendirmeModal.razor - Deðerlendirme modal penceresi
+? CokluResimYukleyici.razor - Çoklu resim yükleme bileþeni
+
+
+3.4. SERVÝSLER (Services)
+-------------------------
+? AdminServis.cs - Admin iþlemleri
+? ApiConfigService.cs - API yapýlandýrma
+? BildirimServis.cs - Bildirim yönetimi
+? ChatBotServis.cs - Chat bot iletiþimi
+? CustomAuthStateProvider.cs - Kimlik doðrulama saðlayýcý
+? DegerlendirmeServis.cs - Deðerlendirme iþlemleri
+? FavoriServis.cs - Favori iþlemleri
+? MesajServis.cs - Mesajlaþma
+? ProfilServis.cs - Profil yönetimi
+? SepetServis.cs - Sepet iþlemleri
+? SiparisServis.cs - Sipariþ iþlemleri
+? TeklifServis.cs - Teklif iþlemleri
+? ThemeService.cs - Tema yönetimi
+
+
+3.5. HANDLERS
+-------------
+? AuthTokenHandler.cs - JWT token otomatik ekleme
+
+
+3.6. MODELS VE DTOs
+-------------------
+? UrunViewModel.cs - Ürün görüntüleme modeli
+? SayfaliUrunResponse.cs - Sayfalama için model
+? KullaniciProfilDto.cs - Profil DTO
+
+
+3.7. PROGRAM.CS YAPILANDIRMASI
+------------------------------
+? HttpClient yapýlandýrmasý
+? AuthTokenHandler ekleme
+? AuthenticationStateProvider kayýt
+? Tüm servislerin dependency injection kayýtlarý
+? Scoped service lifetimes
+
+
+3.8. CSS DOSYALARI
+------------------
+? NavMenu.razor.css - Sol menü stilleri
+? Login.razor.css - Login sayfasý stilleri
+? Register.razor.css - Kayýt sayfasý stilleri
+? app.css - Genel stiller
+  - Dark mode CSS deðiþkenleri
+  - Responsive tasarým
+  - Animasyonlar
+  - Utility classes
+
+================================================================================
+                4. BACKEND GELÝÞTÝRMELERÝ (ASP.NET Core API)
+================================================================================
+
+4.1. CONTROLLERS (API)
+----------------------
+? AdminController.cs - Admin iþlemleri
+? AuthController.cs - Kimlik doðrulama
+? BildirimlerController.cs - Bildirim API
+? ChatBotController.cs - Chat bot API
+? DegerlendirmeController.cs - Deðerlendirme API
+? EmailDogrulamaController.cs - E-posta doðrulama
+? KategorilerController.cs - Kategori CRUD
+? KonumController.cs - Konum servisleri
+? KullanicilarController.cs - Kullanýcý iþlemleri
+? ResimController.cs - Resim yükleme
+? SaticiProfilController.cs - Satýcý profil
+? SepetController.cs - Sepet API
+? SifreSifirlaController.cs - Þifre sýfýrlama
+? SiparislerController.cs - Sipariþ API
+? TekliflerController.cs - Teklif API
+? UrunlerController.cs - Ürün CRUD
+? UrunResimController.cs - Ürün resimleri
+
+
+4.2. MODELS (Database Entities)
+-------------------------------
+? Kullanici.cs - Kullanýcý entity
+? Urun.cs - Ürün entity
+? UrunResim.cs - Ürün resim entity
+? Kategori.cs - Kategori entity
+? Favori.cs - Favori entity
+? Mesaj.cs - Mesaj entity
+? Teklif.cs - Teklif entity
+? Siparis.cs - Sipariþ entity
+? SiparisDetay.cs - Sipariþ detay entity
+? SepetUrun.cs - Sepet entity
+? Bildirim.cs - Bildirim entity
+? SaticiDegerlendirme.cs - Deðerlendirme entity
+? ChatMesaj.cs - Chat mesaj entity
+? EmailDogrulamaToken.cs - E-posta doðrulama token
+? SifreResetToken.cs - Þifre reset token
+
+
+4.3. DTOs (Data Transfer Objects)
+---------------------------------
+? KullaniciKayitDto.cs
+? KullaniciGirisDto.cs
+? KullaniciProfilDto.cs
+? UrunEkleDto.cs
+? UrunGuncelleDto.cs
+? UrunResimDto.cs
+? KategoriEkleDto.cs
+? SepetItemDto.cs
+? SiparisDto.cs
+? DegerlendirmeDto.cs
+? ChatMesajDto.cs
+
+
+4.4. SERVÝSLER
+--------------
+? EmailServis.cs - E-posta gönderimi
+? ChatBotServis.cs - Chat bot mantýðý
+? GeocodingService.cs - Konum servisi
+? AuthenticationStateService.cs - Auth durumu
+? DummyAuthStateProvider.cs - Test auth provider
+
+
+4.5. DATA
+---------
+? ProjeDbContext.cs - Entity Framework DbContext
+  - Tüm entity yapýlandýrmalarý
+  - Ýliþki tanýmlarý
+  - Cascade delete kurallarý
+  - Index tanýmlarý
+? TurkiyeIlIlce.cs - Türkiye il/ilçe verileri
+
+
+4.6. HELPERS
+------------
+? SlugHelper.cs - URL slug oluþturma
+
+
+4.7. MIGRATIONS (Veritabaný Deðiþiklikleri)
+-------------------------------------------
+? 20251012184301_IlkKurulum.cs
+? 20251019171119_UrunVeKategoriModelleriGuncellendi.cs
+? 20251121224831_ResimUrlEklendi.cs
+? 20251129202942_ProfilResmiEklendi.cs
+? 20251129220308_ProfilDetaylariEklendi.cs
+? 20251130203818_SepetEklendi.cs
+? 20251206_AddKonumToUrun.cs
+? 20251223_AddLatitudeLongitudeToUrun.cs
+
+
+4.8. PROGRAM.CS YAPILANDIRMASI
+------------------------------
+? MySQL baðlantýsý (Entity Framework Core)
+? JWT Authentication yapýlandýrmasý
+? CORS politikasý
+? Controller servisleri
+? Swagger/OpenAPI
+? Static files (wwwroot)
+? Servis kayýtlarý (EmailServis, ChatBotServis, vb.)
+
+================================================================================
+                5. VERÝTABANI DEÐÝÞÝKLÝKLERÝ
+================================================================================
+
+5.1. YENÝ TABLOLAR
+------------------
+? bildirimler - Kullanýcý bildirimleri
+? satici_degerlendirmeleri - Satýcý deðerlendirmeleri
+? sepet_urunler - Alýþveriþ sepeti
+? teklifler - Ürün teklifleri
+? siparisler - Sipariþler
+? siparis_detaylari - Sipariþ detaylarý
+? chat_mesajlari - Chat bot konuþmalarý
+? email_dogrulama_tokenlari - E-posta doðrulama
+? sifre_reset_tokenlari - Þifre sýfýrlama
+
+
+5.2. TABLO GÜNCELLEMELERÝ
+-------------------------
+Kullanicilar tablosuna eklenen:
+? ProfilResmi (VARCHAR) - Profil fotoðrafý URL
+? Bio (VARCHAR) - Biyografi
+? Telefon (VARCHAR) - Telefon numarasý
+? Adres (VARCHAR) - Adres
+? OrtalamaPuan (DECIMAL) - Satýcý ortalama puaný
+? ToplamDegerlendirme (INT) - Toplam deðerlendirme sayýsý
+
+Urunler tablosuna eklenen:
+? ResimUrl (VARCHAR) - Ana resim URL
+? Il (VARCHAR) - Ýl bilgisi
+? Ilce (VARCHAR) - Ýlçe bilgisi
+? Latitude (DOUBLE) - Enlem koordinatý
+? Longitude (DOUBLE) - Boylam koordinatý
+
+
+5.3. ÝNDEXLER VE FOREIGN KEYLER
+-------------------------------
+? Bildirimler: KullaniciId FK
+? Degerlendirmeler: SaticiId, DegerlendirenId, SiparisId FK
+? Degerlendirmeler: UNIQUE INDEX (SiparisId, DegerlendirenId)
+? Teklifler: UrunId, AliciId FK
+? Siparisler: KullaniciId FK
+? Sepet: KullaniciId, UrunId FK
+? Cascade Delete kurallarý
+
+================================================================================
+                6. KULLANICI ARAYÜZÜ ÝYÝLEÞTÝRMELERÝ
+================================================================================
+
+6.1. NAVIGASYON MENÜSÜ (NavMenu.razor)
+--------------------------------------
+? Dinamik kategori listesi (API'den çekilir)
+? Kategori bazlý filtreleme linkleri (/kategori/{id})
+? Kullanýcý bazlý menüler (AuthorizeView)
+  - Giriþ yapanlara: Ýlanlarým, Favorilerim, Mesajlarým, Yeni Ýlan
+  - Giriþ yapmayanlara: Giriþ Yap, Kayýt Ol
+? Teklif menüleri (Gönderdiðim Teklifler, Gelen Teklifler)
+? Admin paneli linki (sadece adminlere görünür)
+? Dark mode demo linki
+? Responsive hamburger menü (mobil)
+? Ýkonlu menü öðeleri (Bootstrap Icons)
+? Kategoriler baþlýðý ve ayýrýcýlar
+? Menü scroll özelliði
+? Açýk/kapalý durumu
+
+
+6.2. ÜST NAVBAR (TopNavbar.razor)
+---------------------------------
+? Logo ve site adý
+? Arama kutusu
+? Bildirim ikonu ve badge
+  - Okunmamýþ bildirim sayýsý
+  - Pulse animasyonu
+  - Dropdown bildirim listesi
+  - Zaman gösterimi
+  - Okundu iþaretleme
+  - Tümünü okundu iþaretle
+  - Bildirim silme
+? Kullanýcý menüsü (dropdown)
+  - Profil linki
+  - Çýkýþ linki
+? Sepet ikonu
+? Responsive tasarým
+
+
+6.3. TEMA VE STÝL
+-----------------
+? Bootstrap 5.3 entegrasyonu
+? Bootstrap Icons
+? Dark mode desteði
+? CSS deðiþkenleri ile dinamik renklendirme
+? Gradient butonlar
+? Animasyonlar:
+  - Pulse (bildirim badge)
+  - Wave (BOVÝ ikonu)
+  - Fade in/out
+  - Hover efektleri
+? Responsive grid sistemi
+? Card tasarýmlarý
+? Modal pencereler
+? Toast bildirimleri
+
+
+6.4. KULLANICI DENEYÝMÝ (UX)
+---------------------------
+? Yükleniyor göstergeleri (loading spinners)
+? Hata mesajlarý (user-friendly)
+? Baþarý mesajlarý
+? Form validasyonlarý
+? Onay diyaloglarý (silme iþlemleri)
+? Boþ durum mesajlarý ("Henüz ürün yok")
+? Sayfalama (pagination)
+? Filtreleme ve sýralama
+? Arama önerileri
+? Otomatik yönlendirmeler
+? Geri dönüþ butonlarý
+
+
+6.5. RESPONSÝVE TASARIM
+-----------------------
+? Mobil uyumlu navigasyon (hamburger menü)
+? Tablet görünümü
+? Masaüstü görünümü
+? Flexible grid layout
+? Responsive resimler
+? Touch-friendly butonlar
+? Breakpoint'ler:
+  - xs: <576px
+  - sm: ?576px
+  - md: ?768px
+  - lg: ?992px
+  - xl: ?1200px
+
+================================================================================
+                7. GÜVENLÝK VE KÝMLÝK DOÐRULAMA
+================================================================================
+
+7.1. AUTHENTICATION
+-------------------
+? JWT Token bazlý kimlik doðrulama
+? Token localStorage'da saklama
+? Otomatik token ekleme (AuthTokenHandler)
+? Token expiration kontrolü
+? Login/Logout flow
+? AuthorizeView kullanýmý
+? CustomAuthStateProvider
+
+
+7.2. AUTHORÝZATÝON
+------------------
+? Rol bazlý yetkilendirme (Admin, User)
+? Sayfa bazlý eriþim kontrolü
+? API endpoint güvenliði ([Authorize] attribute)
+? Admin paneli eriþim kýsýtlamasý
+? Kendi içeriðini düzenleme kontrolü
+
+
+7.3. CORS POLÝTÝKASI
+--------------------
+? Frontend-Backend arasý CORS yapýlandýrmasý
+? Ýzin verilen origin'ler
+? Ýzin verilen metodlar (GET, POST, PUT, DELETE)
+? Ýzin verilen header'lar
+
+
+7.4. VALÝDASYON
+---------------
+? Model validasyonu (Data Annotations)
+? Frontend form validasyonu
+? Backend DTO validasyonu
+? Özel validasyon kurallarý
+? Güvenli parola gereksinimleri
+
+
+7.5. GÜVENLÝK ÖNLEMLERÝ
+-----------------------
+? SQL Injection korumasý (Entity Framework)
+? XSS korumasý (Razor otomatik encoding)
+? CSRF token'larý
+? Güvenli þifre hashleme (BCrypt/ASP.NET Identity)
+? E-posta doðrulama
+? Þifre sýfýrlama token'larý (süreli)
+? Rate limiting (gelecek)
+
+================================================================================
+                8. TAMAMLANAN DOKÜMANTASYONLAR
+================================================================================
+
+? BILDIRIM_SISTEMI_TAMAMLANDI.md
+  - Bildirim sistemi kurulum rehberi
+  - API dokümantasyonu
+  - Test senaryolarý
+  - Hata ayýklama rehberi
+  - Görseller ve örnekler
+
+? DEGERLENDIRME_SISTEMI_CALISIR_HALE_GETIRILDI.md
+  - Deðerlendirme sistemi kurulum rehberi
+  - SQL script'leri
+  - Veritabaný yapýsý
+  - Kontrol listesi
+  - Destek bilgileri
+
+? README.md (Olmasý beklenen)
+  - Proje tanýtýmý
+  - Kurulum talimatlarý
+  - Teknoloji stack
+  - Özellik listesi
+
+================================================================================
+                9. PROJE ÖZELLÝKLERÝ ÖZET
+================================================================================
+
+9.1. KULLANICI ÖZELLÝKLERÝ
+--------------------------
+? Kullanýcý kayýt ve giriþ
+? E-posta doðrulama
+? Þifre sýfýrlama
+? Profil yönetimi (resim, bio, iletiþim)
+? Ürün arama ve filtreleme
+? Kategori bazlý gezinme
+? Ürün detay görüntüleme
+? Favorilere ekleme/çýkarma
+? Sepete ekleme/çýkarma
+? Sipariþ oluþturma ve takip
+? Satýcýya mesaj gönderme
+? Satýcýya teklif gönderme
+? Satýcýyý deðerlendirme
+? Bildirim alma
+? Chat bot yardýmý (BOVÝ)
+? Dark mode tercihi
+
+
+9.2. SATICI ÖZELLÝKLERÝ
+-----------------------
+? Ürün ekleme (çoklu resim)
+? Ürün düzenleme
+? Ürün silme
+? Ýlan yönetimi
+? Gelen teklifleri görüntüleme
+? Teklif kabul/red etme
+? Mesajlarý görüntüleme ve cevaplama
+? Sipariþ durumu güncelleme
+? Deðerlendirmeleri görüntüleme
+
+
+9.3. ADMÝN ÖZELLÝKLERÝ
+----------------------
+? Tüm kullanýcýlarý görüntüleme
+? Kullanýcý engelleme/aktif etme
+? Tüm ürünleri yönetme
+? Ürün onaylama/reddetme
+? Kategori ekleme/düzenleme/silme
+? Tüm sipariþleri görüntüleme
+? Sipariþ durumu güncelleme
+? Ýstatistikler ve raporlar
+? Sistem ayarlarý
+
+
+9.4. SÝSTEM ÖZELLÝKLERÝ
+-----------------------
+? RESTful API
+? JWT Authentication
+? Rol bazlý yetkilendirme
+? E-posta bildirimleri
+? Gerçek zamanlý bildirimler (polling)
+? Resim yükleme ve yönetimi
+? Çoklu resim desteði
+? Sayfalama (pagination)
+? Arama ve filtreleme
+? Kategori sistemi
+? Konum bazlý özellikler
+? Responsive tasarým
+? Dark mode
+? Chat bot (yapay zeka benzeri)
+? SEO dostu URL'ler (slug)
+? Veritabaný migration'larý
+
+================================================================================
+                10. TEKNÝK DETAYLAR
+================================================================================
+
+10.1. PROJEDE KULLANILAN PAKETLER
+---------------------------------
+Backend (Üný_Proje):
+? Microsoft.EntityFrameworkCore
+? Pomelo.EntityFrameworkCore.MySql
+? Microsoft.AspNetCore.Authentication.JwtBearer
+? System.IdentityModel.Tokens.Jwt
+? BCrypt.Net-Next
+? MailKit (veya benzeri e-posta paketi)
+? BouncyCastle.Cryptography
+
+Frontend (Üný_Proje.Web.Client):
+? Microsoft.AspNetCore.Components.WebAssembly
+? Microsoft.AspNetCore.Components.WebAssembly.Authentication
+? Microsoft.Extensions.Http
+? System.Net.Http.Json
+
+
+10.2. PORT YAPILANDIRMASI
+-------------------------
+? Backend API: https://localhost:7130
+? Frontend Server: https://localhost:7000
+? MySQL: localhost:3306
+
+
+10.3. VERÝTABANI
+----------------
+? Sunucu: MySQL
+? Veritabaný adý: ikinciel_proje_db
+? Karakter seti: utf8mb4
+? Collation: utf8mb4_unicode_ci
+
+
+10.4. KLASÖR YAPISI
+-------------------
+Üný_Proje/
+??? Controllers/          (API Controllers)
+??? Models/              (Database Entities)
+??? DTOs/                (Data Transfer Objects)
+??? Services/            (Business Logic)
+??? Data/                (DbContext, Static Data)
+??? Helpers/             (Utility Classes)
+??? Migrations/          (EF Core Migrations)
+??? Pages/               (Razor Pages)
+??? wwwroot/             (Static Files, Images)
+??? Program.cs
+??? appsettings.json
+
+Üný_Proje.Web/
+??? Controllers/         (Server Controllers)
+??? Components/          (Razor Components)
+?   ??? App.razor
+?   ??? Pages/
+??? Services/
+??? Models/
+??? Program.cs
+??? appsettings.json
+
+Üný_Proje.Web.Client/
+??? Components/
+?   ??? Layout/          (NavMenu, TopNavbar, MainLayout)
+??? Pages/               (Blazor Pages)
+??? Services/            (API Services)
+??? Models/              (ViewModels)
+??? DTOs/
+??? Handlers/            (AuthTokenHandler)
+??? wwwroot/
+?   ??? css/
+?   ??? js/
+?   ??? images/
+??? Program.cs
+??? _Imports.razor
+
+================================================================================
+                11. ÖNEMLÝ NOTLAR
+================================================================================
+
+? Proje 3 katmanlý bir mimari kullanmaktadýr:
+   1. Backend API (Üný_Proje) - Veri ve iþ mantýðý
+   2. Server (Üný_Proje.Web) - SSR ve auth
+   3. Client (Üný_Proje.Web.Client) - Kullanýcý arayüzü
+
+? Blazor WebAssembly ile SPA (Single Page Application) mimarisi kullanýlmýþtýr
+
+? JWT Token ile stateless authentication saðlanmýþtýr
+
+? Entity Framework Core Code-First yaklaþýmý kullanýlmýþtýr
+
+? Migration'lar ile veritabaný versiyonlama yapýlmýþtýr
+
+? Repository pattern yerine DbContext doðrudan kullanýlmýþtýr (basitlik için)
+
+? Dependency Injection ile loose coupling saðlanmýþtýr
+
+? async/await ile asenkron programlama uygulanmýþtýr
+
+? RESTful API standartlarýna uyulmuþtur
+
+? Bootstrap 5 ile modern ve responsive tasarým yapýlmýþtýr
+
+? Dark mode için CSS deðiþkenleri kullanýlmýþtýr
+
+================================================================================
+                12. GELECEK PLANLAR VE ÝYÝLEÞTÝRMELER
+================================================================================
+
+12.1. PLANLI ÖZELLÝKLER
+-----------------------
+? SignalR ile gerçek zamanlý bildirimler (polling yerine)
+? Push Notifications (browser notification API)
+? Ses bildirimi (yeni bildirimde ses çalar)
+? Bildirimler sayfasý (/bildirimler)
+? Toplu bildirim silme
+? Bildirim filtreleme
+? Bildirim tercihleri (hangi bildirimleri alacaðýný seç)
+? Ödeme entegrasyonu (Stripe, PayPal, iyzico)
+? Sosyal medya ile giriþ
+? Ýki faktörlü kimlik doðrulama (2FA)
+? Ürün karþýlaþtýrma
+? Geliþmiþ arama (ElasticSearch)
+? Cache mekanizmasý (Redis)
+? CDN entegrasyonu (resimler için)
+? Mobile app (Xamarin/MAUI)
+? Progressive Web App (PWA)
+
+
+12.2. PERFORMANS ÝYÝLEÞTÝRMELERÝ
+--------------------------------
+? Lazy loading (resimler için)
+? Veritabaný indexleme optimizasyonu
+? Query optimization
+? Caching stratejisi
+? CDN kullanýmý
+? Image optimization (WebP formatý)
+? Minification (CSS, JS)
+? Bundling
+
+
+12.3. GÜVENLÝK ÝYÝLEÞTÝRMELERÝ
+------------------------------
+? Rate limiting
+? API throttling
+? CAPTCHA (bot korumasý)
+? Content Security Policy (CSP)
+? HTTPS zorunluluðu
+? Güvenlik audit'leri
+? Penetrasyon testleri
+
+
+12.4. KOD KALÝTESÝ
+------------------
+? Unit testler
+? Integration testler
+? UI testler (Selenium)
+? Code coverage analizi
+? Static code analysis
+? Refactoring
+? Code review süreci
+? CI/CD pipeline
+
+================================================================================
+                13. DESTEK VE ÝLETÝÞÝM
+================================================================================
+
+Proje Sahibi: [Bilgileriniz]
+Geliþtirme Tarihi: 17 Aralýk 2024 - Devam Ediyor
+Platform: .NET 8.0, Blazor WebAssembly, MySQL
+Lisans: [Lisans Bilgisi]
+
+Ýletiþim:
+- GitHub: [Repository Link]
+- E-posta: [E-posta Adresi]
+- LinkedIn: [LinkedIn Profil]
+
+Hata Bildirimi:
+- GitHub Issues: [Issues Link]
+- E-posta: [Destek E-posta]
+
+Dokümantasyon:
+- README.md
+- BILDIRIM_SISTEMI_TAMAMLANDI.md
+- DEGERLENDIRME_SISTEMI_CALISIR_HALE_GETIRILDI.md
+- Bu rapor (PROJE_DEGISIKLIKLERI_17_ARALIK_SONRASI.txt)
+
+================================================================================
+                14. SONUÇ
+================================================================================
+
+17 Aralýk 2024 tarihinden bu yana, Ýkinci El Market platformunda kapsamlý 
+geliþtirmeler yapýlmýþtýr. Proje, modern web teknolojileri kullanýlarak 
+geliþtirilmiþ, kullanýcý dostu ve güvenli bir e-ticaret platformu haline 
+getirilmiþtir.
+
+Öne Çýkan Baþarýlar:
+? 13 ana sistem tamamlandý (Bildirim, Deðerlendirme, Teklif, vb.)
+? 25+ sayfa ve bileþen geliþtirildi
+? 15+ API controller oluþturuldu
+? 8+ veritabaný migration'ý yapýldý
+? Dark mode desteði eklendi
+? Chat bot (BOVÝ) entegrasyonu
+? Responsive tasarým
+? Güvenli kimlik doðrulama
+? Admin paneli
+? Kapsamlý dokümantasyon
+
+Proje, aktif olarak geliþtirilmeye devam etmektedir ve yukarýda belirtilen 
+gelecek planlar doðrultusunda iyileþtirmeler yapýlacaktýr.
+
+================================================================================
+                        RAPOR SONU
+================================================================================
+
+Rapor Oluþturma Tarihi: 28 Aralýk 2024
+Son Güncelleme: 28 Aralýk 2024
+Versiyon: 1.0
+
+Bu rapor, projedeki tüm dosyalarý inceleyerek ve mevcut kaynak kodlarý 
+analiz edilerek oluþturulmuþtur. Rapor, proje yapýsýný, özellikleri, 
+teknolojileri ve yapýlan deðiþiklikleri detaylý bir þekilde içermektedir.
+
+NOT: Bu rapor, 17 Aralýk 2024 tarihinden sonraki deðiþiklikleri kapsamaktadýr. 
+Bu tarihten önceki geliþtirmeler için proje geçmiþine baþvurunuz.
+
+================================================================================

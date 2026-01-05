@@ -1,0 +1,41 @@
+﻿@using Unı_Proje.Web.Client.Components.Layout
+@using Microsoft.AspNetCore.Components.Authorization
+@using Unı_Proje.Web.Client.Pages
+
+@* 👇 KRİTİK: Bu etiket olmazsa sistem giriş durumunu algılayamaz *@
+<CascadingAuthenticationState>
+
+    <Router AppAssembly="@typeof(Program).Assembly"
+            AdditionalAssemblies="new[] { typeof(Unı_Proje.Web.Client.Pages.Login).Assembly }">
+
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                <NotAuthorized>
+                    <div class="alert alert-warning m-4">
+                        <h3>Yetkisiz Erişim</h3>
+                        <p>Bu içeriği görmek için lütfen <a href="login">giriş yapınız</a>.</p>
+                    </div>
+                </NotAuthorized>
+                <Authorizing>
+                    <div class="m-4">
+                        <p>Yetki kontrol ediliyor...</p>
+                    </div>
+                </Authorizing>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>Sayfa Bulunamadı</PageTitle>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <div class="container mt-4">
+                    <div class="alert alert-danger">
+                        <h4>404 - Sayfa Bulunamadı</h4>
+                        <p>Üzgünüz, gitmeye çalıştığınız adres sistemde kayıtlı değil.</p>
+                        <a href="/" class="btn btn-primary">Ana Sayfaya Dön</a>
+                    </div>
+                </div>
+            </LayoutView>
+        </NotFound>
+    </Router>
+
+</CascadingAuthenticationState>

@@ -1,0 +1,237 @@
+﻿@page "/urun-duzenle/{Id:int}"
+@using Unı_Proje.Web.Client.Models
+@using System.Net.Http.Json
+@using System.Net.Http.Headers
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-lg">
+                <div class="card-header bg-info text-white">
+                    <h3 class="mb-0">
+                        <i class="bi bi-pencil-square me-2"></i>
+                        İlanı Düzenle
+                    </h3>
+                </div>
+                <div class="card-body">
+                    @if (model == null)
+                    {
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+                            <p class="mt-3 text-muted">Ürün bilgileri yükleniyor...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <EditForm Model="@model" OnValidSubmit="Guncelle" Context="editContext">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary class="alert alert-danger" />
+
+        <div class="mb-3">
+            <label class="form-label">Ürün Adı</label>
+            <InputText @bind-Value="model.Ad" class="form-control" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Açıklama</label>
+            <InputTextArea @bind-Value="model.Aciklama" class="form-control" rows="3" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Fiyat</label>
+            <InputNumber @bind-Value="model.Fiyat" class="form-control" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Kategori</label>
+            <InputSelect @bind-Value="model.KategoriId" class="form-control">
+                <option value="0">Kategori Seçiniz...</option>
+                @if (kategoriler != null)
+                {
+                    @foreach (var kat in kategoriler)
+                    {
+                        <option value="@kat.Id">@kat.Ad</option>
+                    }
+                }
+            </InputSelect>
+        </div>
+
+        @* --- 📦 STOK MİKTARI --- *@
+        <div class="mb-3">
+            <label class="form-label">
+                <i class="bi bi-box-seam me-2"></i>
+                Stok Miktarı
+            </label>
+            <InputNumber @bind-Value="model.StokMiktari" class="form-control" min="0" />
+            <small class="text-muted">Stoktaki mevcut adet</small>
+        </div>
+        @* -------------------------- *@
+
+        @* --- 📍 KONUM --- *@
+        <div class="mb-3">
+            <label class="form-label">
+                <i class="bi bi-geo-alt me-2"></i>
+                Konum (Şehir, İlçe)
+            </label>
+            <InputText @bind-Value="model.Konum" class="form-control" placeholder="Örn: İstanbul, Kadıköy" />
+            <small class="text-muted">Ürünün bulunduğu konum</small>
+        </div>
+        @* -------------------------- *@
+
+        @* --- 📸 ÇOKLU RESİM YÖNETİMİ --- *@
+        <div class="mb-4">
+            <label class="form-label">
+                <i class="bi bi-images me-2"></i>
+                Ürün Resimleri (En fazla 5)
+            </label>
+            <CokluResimYukleyici 
+                UrunId="@Id" 
+                Resimler="@resimler" 
+                Duzenlenebilir="true"
+                OnResimDegisti="ResimleriYenile" />
+        </div>
+        @* -------------------------- *@
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                                <a href="/ilanlarim" class="btn btn-secondary btn-lg me-md-2">
+                                    <i class="bi bi-x-circle me-2"></i>
+                                    İptal
+                                </a>
+                                <button type="submit" class="btn btn-success btn-lg" disabled="@yukleniyor">
+                                    @if (yukleniyor)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        <span>Kaydediliyor...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-check-circle me-2"></i>
+                                        <span>Güncelle ve Kaydet</span>
+                                    }
+                                </button>
+                            </div>
+                        </EditForm>
+                    }
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger mt-3" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            @errorMessage
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(successMessage))
+                    {
+                        <div class="alert alert-success mt-3" role="alert">
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                            @successMessage
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private UrunGuncelleViewModel? model;
+    private List<KategoriViewModel>? kategoriler;
+    private List<CokluResimYukleyici.UrunResimDto>? resimler;
+    private string? errorMessage;
+    private string? successMessage;
+    private bool yukleniyor = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // 1. Kategorileri Çek (Dropdown için)
+            kategoriler = await Http.GetFromJsonAsync<List<KategoriViewModel>>("https://localhost:7130/api/kategoriler");
+
+            // 2. Düzenlenecek Ürünün Mevcut Bilgilerini Çek
+            var gelenUrun = await Http.GetFromJsonAsync<UrunGuncelleViewModel>($"https://localhost:7130/api/urunler/{Id}");
+
+            if (gelenUrun != null)
+            {
+                model = gelenUrun;
+            }
+
+            // 3. Ürünün Resimlerini Çek
+            await ResimleriYenile();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Veri yüklenirken hata: {ex.Message}";
+            Console.WriteLine($"[HATA] {ex.Message}");
+            Console.WriteLine($"[STACK] {ex.StackTrace}");
+        }
+    }
+
+    private async Task ResimleriYenile()
+    {
+        try
+        {
+            resimler = await Http.GetFromJsonAsync<List<CokluResimYukleyici.UrunResimDto>>($"https://localhost:7130/api/UrunResim/urun/{Id}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Resim yükleme hatası: {ex.Message}");
+        }
+    }
+
+    private async Task Guncelle()
+    {
+        yukleniyor = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                errorMessage = "Oturum süreniz dolmuş. Lütfen tekrar giriş yapın.";
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            // PUT isteği gönderiyoruz
+            var response = await Http.PutAsJsonAsync("https://localhost:7130/api/urunler/guncelle", model);
+
+            if (response.IsSuccessStatusCode)
+            {
+                successMessage = "✅ Ürün başarıyla güncellendi! Yönlendiriliyorsunuz...";
+                await Task.Delay(1500);
+                
+                // Başarılıysa listeye dön
+                Navigation.NavigateTo("/ilanlarim");
+            }
+            else
+            {
+                var msg = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Güncelleme başarısız: {msg}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"❌ Hata: {ex.Message}";
+        }
+        finally
+        {
+            yukleniyor = false;
+        }
+    }
+
+}
